@@ -4,6 +4,7 @@ import com.musiclibrary.dao.AlbumDAO;
 import com.musiclibrary.model.Album;
 
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.logging.Level;
@@ -264,6 +265,12 @@ public class AlbumService {
     public List<Album> searchAlbums(String query) {
         LOGGER.info("Searching albums with query: " + query);
         
+        // Handle empty queries without calling DAO
+        if (query == null || query.trim().isEmpty()) {
+            LOGGER.info("Empty query provided, returning empty list");
+            return new ArrayList<Album>();
+        }
+        
         try {
             List<Album> albums = albumDAO.search(query);
             LOGGER.info("Search returned " + albums.size() + " albums");
@@ -273,6 +280,38 @@ public class AlbumService {
         } catch (SQLException e) {
             LOGGER.log(Level.SEVERE, "Database error searching albums", e);
             throw new RuntimeException("Failed to search albums: " + e.getMessage(), e);
+        }
+    }
+    
+    /**
+     * Gets albums by artist ID with business logic.
+     * 
+     * Business Logic:
+     * - Validates artist ID before search
+     * - Returns albums ordered by release date (newest first)
+     * - Provides complete discography for an artist by ID
+     * 
+     * @param artistId Artist ID to get albums for
+     * @return List of albums by the artist (never null, may be empty)
+     * @throws IllegalArgumentException if artist ID is invalid
+     * @throws RuntimeException if database operation fails
+     */
+    public List<Album> getAlbumsByArtist(Long artistId) {
+        if (artistId == null || artistId <= 0) {
+            throw new IllegalArgumentException("Invalid artist ID provided");
+        }
+        
+        LOGGER.fine("Retrieving albums for artist ID: " + artistId);
+        
+        try {
+            List<Album> albums = albumDAO.findByArtist(artistId);
+            LOGGER.fine("Retrieved " + albums.size() + " albums for artist ID: " + artistId);
+            
+            return albums;
+            
+        } catch (SQLException e) {
+            LOGGER.log(Level.SEVERE, "Database error retrieving albums by artist ID", e);
+            throw new RuntimeException("Failed to retrieve albums by artist ID: " + e.getMessage(), e);
         }
     }
     
@@ -412,8 +451,8 @@ public class AlbumService {
             throw new IllegalArgumentException("Album name is required");
         }
         
-        if (album.getArtistId() == null) {
-            throw new IllegalArgumentException("Artist ID is required");
+        if (album.getArtistId() == null || album.getArtistId().longValue() <= 0) {
+            throw new IllegalArgumentException("Valid Artist ID is required");
         }
         
         // Business rule: Album name should be reasonable length

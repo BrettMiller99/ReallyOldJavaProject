@@ -4,6 +4,7 @@ import com.musiclibrary.dao.ArtistDAO;
 import com.musiclibrary.model.Artist;
 
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -258,6 +259,12 @@ public class ArtistService {
      */
     public List<Artist> searchArtists(String query) {
         LOGGER.info("Searching artists with query: " + query);
+        
+        // Handle empty queries without calling DAO
+        if (query == null || query.trim().isEmpty()) {
+            LOGGER.info("Empty query provided, returning empty list");
+            return new ArrayList<Artist>();
+        }
         
         try {
             List<Artist> artists = artistDAO.search(query);

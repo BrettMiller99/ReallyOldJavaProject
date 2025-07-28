@@ -218,17 +218,25 @@ public class SongServiceTest {
         // Assert
         assertNotNull("Search results should not be null", result);
         assertTrue("Search results should be empty", result.isEmpty());
-        verify(mockSongDAO, never()).search(anyString());
+        try {
+            verify(mockSongDAO, never()).search(anyString());
+        } catch (SQLException e) {
+            fail("Verify should not throw SQLException");
+        }
     }
     
     @Test
-    public void testGetSongsByArtist_ValidArtist_Success() throws SQLException {
+    public void testGetSongsByArtist_ValidArtist_Success() {
         // Arrange
         String artistName = "Test Artist";
         List<Song> expectedSongs = new ArrayList<Song>();
         expectedSongs.add(createValidSong());
         
-        when(mockSongDAO.findByArtist(artistName)).thenReturn(expectedSongs);
+        try {
+            when(mockSongDAO.findByArtist(artistName)).thenReturn(expectedSongs);
+        } catch (SQLException e) {
+            fail("Mock setup should not throw SQLException");
+        }
         
         // Act
         List<Song> result = songService.getSongsByArtist(artistName);
@@ -236,7 +244,11 @@ public class SongServiceTest {
         // Assert
         assertNotNull("Results should not be null", result);
         assertEquals("Should return 1 song", 1, result.size());
-        verify(mockSongDAO, times(1)).findByArtist(artistName);
+        try {
+            verify(mockSongDAO, times(1)).findByArtist(artistName);
+        } catch (SQLException e) {
+            fail("Verify should not throw SQLException");
+        }
     }
     
     @Test(expected = IllegalArgumentException.class)
@@ -277,7 +289,7 @@ public class SongServiceTest {
         song.setTrackLength(180); // 3 minutes
         song.setDateReleased(new Date());
         song.setGenre("Rock");
-        song.setRating(4.5);
+        song.setRating(4); // Integer rating (0-5 stars)
         return song;
     }
 }

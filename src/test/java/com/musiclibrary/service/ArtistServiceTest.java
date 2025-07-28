@@ -96,7 +96,7 @@ public class ArtistServiceTest {
     public void testCreateArtist_FutureFormationYear_ThrowsException() {
         // Arrange
         Artist artist = createValidArtist();
-        artist.setFormationYear(2030); // Future year
+        artist.setFormedYear(2030); // Future year
         
         // Act & Assert
         artistService.createArtist(artist);
@@ -106,7 +106,7 @@ public class ArtistServiceTest {
     public void testCreateArtist_TooOldFormationYear_ThrowsException() {
         // Arrange
         Artist artist = createValidArtist();
-        artist.setFormationYear(1800); // Too old
+        artist.setFormedYear(1800); // Too old
         
         // Act & Assert
         artistService.createArtist(artist);
@@ -237,7 +237,11 @@ public class ArtistServiceTest {
         // Assert
         assertNotNull("Search results should not be null", result);
         assertTrue("Search results should be empty", result.isEmpty());
-        verify(mockArtistDAO, never()).search(anyString());
+        try {
+            verify(mockArtistDAO, never()).search(anyString());
+        } catch (SQLException e) {
+            fail("Verify should not throw SQLException");
+        }
     }
     
     @Test
@@ -349,9 +353,9 @@ public class ArtistServiceTest {
     private Artist createValidArtist() {
         Artist artist = new Artist();
         artist.setArtistName("Test Artist");
-        artist.setFormationYear(1990);
+        artist.setFormedYear(1990);
         artist.setCountry("USA");
-        artist.setGenre("Rock");
+        // Note: Artist model doesn't have genre field - genre is at song/album level
         artist.setBiography("Test biography");
         artist.setWebsite("http://www.testartist.com");
         artist.setCreatedDate(new Date());

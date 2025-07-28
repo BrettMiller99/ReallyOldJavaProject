@@ -237,7 +237,11 @@ public class AlbumServiceTest {
         // Assert
         assertNotNull("Search results should not be null", result);
         assertTrue("Search results should be empty", result.isEmpty());
-        verify(mockAlbumDAO, never()).search(anyString());
+        try {
+            verify(mockAlbumDAO, never()).search(anyString());
+        } catch (SQLException e) {
+            fail("Verify should not throw SQLException");
+        }
     }
     
     @Test
