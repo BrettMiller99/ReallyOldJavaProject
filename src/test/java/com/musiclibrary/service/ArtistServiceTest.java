@@ -2,38 +2,34 @@ package com.musiclibrary.service;
 
 import com.musiclibrary.dao.ArtistDAO;
 import com.musiclibrary.model.Artist;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.jupiter.MockitoExtension;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 /**
- * Unit tests for ArtistService using traditional Java 7 testing patterns.
+ * Unit tests for ArtistService using modern Java 17 testing patterns.
  * 
  * Testing Approach:
  * - Validates artist business logic and data integrity rules
  * - Tests formation year validation and country name normalization
  * - Verifies error handling for invalid artist data
  * - Tests pagination and search functionality
- * - Demonstrates legacy service testing patterns
- * 
- * Migration Opportunities:
- * - JUnit 4 -> JUnit 5 with improved parameterized tests
- * - Manual date handling -> Java 8 LocalDate
- * - Traditional validation -> Bean Validation with @Valid
- * - Static imports -> more readable fluent assertions
+ * - Demonstrates modern service testing patterns after migration
  * 
  * @author Music Library Development Team
- * @version 1.0
- * @since Java 7
+ * @version 2.0
+ * @since Java 17
  */
+@ExtendWith(MockitoExtension.class)
 public class ArtistServiceTest {
     
     @Mock
@@ -41,9 +37,8 @@ public class ArtistServiceTest {
     
     private ArtistService artistService;
     
-    @Before
+    @BeforeEach
     public void setUp() {
-        MockitoAnnotations.initMocks(this);
         artistService = new ArtistService(mockArtistDAO);
     }
     
@@ -60,66 +55,78 @@ public class ArtistServiceTest {
         Artist result = artistService.createArtist(inputArtist);
         
         // Assert
-        assertNotNull("Created artist should not be null", result);
-        assertEquals("Artist ID should be set", Long.valueOf(1L), result.getArtistId());
-        assertEquals("Artist name should match", "Test Artist", result.getArtistName());
+        assertNotNull(result, "Created artist should not be null");
+        assertEquals(Long.valueOf(1L), result.getArtistId(), "Artist ID should be set");
+        assertEquals("Test Artist", result.getArtistName(), "Artist name should match");
         verify(mockArtistDAO, times(1)).create(any(Artist.class));
     }
     
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testCreateArtist_NullArtist_ThrowsException() {
         // Act & Assert
-        artistService.createArtist(null);
+        assertThrows(IllegalArgumentException.class, () -> {
+            artistService.createArtist(null);
+        });
     }
     
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testCreateArtist_EmptyArtistName_ThrowsException() {
         // Arrange
         Artist artist = createValidArtist();
         artist.setArtistName("");
         
         // Act & Assert
-        artistService.createArtist(artist);
+        assertThrows(IllegalArgumentException.class, () -> {
+            artistService.createArtist(artist);
+        });
     }
     
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testCreateArtist_NullArtistName_ThrowsException() {
         // Arrange
         Artist artist = createValidArtist();
         artist.setArtistName(null);
         
         // Act & Assert
-        artistService.createArtist(artist);
+        assertThrows(IllegalArgumentException.class, () -> {
+            artistService.createArtist(artist);
+        });
     }
     
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testCreateArtist_FutureFormationYear_ThrowsException() {
         // Arrange
         Artist artist = createValidArtist();
         artist.setFormedYear(2030); // Future year
         
         // Act & Assert
-        artistService.createArtist(artist);
+        assertThrows(IllegalArgumentException.class, () -> {
+            artistService.createArtist(artist);
+        });
     }
     
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testCreateArtist_TooOldFormationYear_ThrowsException() {
         // Arrange
         Artist artist = createValidArtist();
         artist.setFormedYear(1800); // Too old
         
         // Act & Assert
-        artistService.createArtist(artist);
+        assertThrows(IllegalArgumentException.class, () -> {
+            artistService.createArtist(artist);
+        });
     }
     
-    @Test(expected = RuntimeException.class)
+    @Test
     public void testCreateArtist_DatabaseError_ThrowsRuntimeException() throws SQLException {
         // Arrange
         Artist artist = createValidArtist();
         when(mockArtistDAO.create(any(Artist.class))).thenThrow(new SQLException("DB error"));
         
         // Act & Assert
-        artistService.createArtist(artist);
+        assertThrows(RuntimeException.class, () -> {
+            artistService.createArtist(artist);
+        });
     }
     
     @Test
@@ -135,21 +142,25 @@ public class ArtistServiceTest {
         Artist result = artistService.getArtistById(artistId);
         
         // Assert
-        assertNotNull("Retrieved artist should not be null", result);
-        assertEquals("Artist ID should match", artistId, result.getArtistId());
+        assertNotNull(result, "Retrieved artist should not be null");
+        assertEquals(artistId, result.getArtistId(), "Artist ID should match");
         verify(mockArtistDAO, times(1)).findById(artistId);
     }
     
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testGetArtistById_NullId_ThrowsException() {
         // Act & Assert
-        artistService.getArtistById(null);
+        assertThrows(IllegalArgumentException.class, () -> {
+            artistService.getArtistById(null);
+        });
     }
     
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testGetArtistById_InvalidId_ThrowsException() {
         // Act & Assert
-        artistService.getArtistById(0L);
+        assertThrows(IllegalArgumentException.class, () -> {
+            artistService.getArtistById(0L);
+        });
     }
     
     @Test
@@ -165,8 +176,8 @@ public class ArtistServiceTest {
         List<Artist> result = artistService.getAllArtists();
         
         // Assert
-        assertNotNull("Artists list should not be null", result);
-        assertEquals("Should return 2 artists", 2, result.size());
+        assertNotNull(result, "Artists list should not be null");
+        assertEquals(2, result.size(), "Should return 2 artists");
         verify(mockArtistDAO, times(1)).findAll();
     }
     
@@ -182,19 +193,21 @@ public class ArtistServiceTest {
         Artist result = artistService.updateArtist(artist);
         
         // Assert
-        assertNotNull("Updated artist should not be null", result);
-        assertEquals("Artist ID should match", Long.valueOf(1L), result.getArtistId());
+        assertNotNull(result, "Updated artist should not be null");
+        assertEquals(Long.valueOf(1L), result.getArtistId(), "Artist ID should match");
         verify(mockArtistDAO, times(1)).update(any(Artist.class));
     }
     
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testUpdateArtist_NullId_ThrowsException() {
         // Arrange
         Artist artist = createValidArtist();
         artist.setArtistId(null);
         
         // Act & Assert
-        artistService.updateArtist(artist);
+        assertThrows(IllegalArgumentException.class, () -> {
+            artistService.updateArtist(artist);
+        });
     }
     
     @Test
@@ -207,7 +220,7 @@ public class ArtistServiceTest {
         boolean result = artistService.deleteArtist(artistId);
         
         // Assert
-        assertTrue("Delete should return true", result);
+        assertTrue(result, "Delete should return true");
         verify(mockArtistDAO, times(1)).delete(artistId);
     }
     
@@ -224,8 +237,8 @@ public class ArtistServiceTest {
         List<Artist> result = artistService.searchArtists(query);
         
         // Assert
-        assertNotNull("Search results should not be null", result);
-        assertEquals("Should return 1 artist", 1, result.size());
+        assertNotNull(result, "Search results should not be null");
+        assertEquals(1, result.size(), "Should return 1 artist");
         verify(mockArtistDAO, times(1)).search(query);
     }
     
@@ -235,8 +248,8 @@ public class ArtistServiceTest {
         List<Artist> result = artistService.searchArtists("");
         
         // Assert
-        assertNotNull("Search results should not be null", result);
-        assertTrue("Search results should be empty", result.isEmpty());
+        assertNotNull(result, "Search results should not be null");
+        assertTrue(result.isEmpty(), "Search results should be empty");
         try {
             verify(mockArtistDAO, never()).search(anyString());
         } catch (SQLException e) {
@@ -258,21 +271,25 @@ public class ArtistServiceTest {
         List<Artist> result = artistService.getArtistsWithPagination(page, size);
         
         // Assert
-        assertNotNull("Paginated results should not be null", result);
-        assertEquals("Should return 1 artist", 1, result.size());
+        assertNotNull(result, "Paginated results should not be null");
+        assertEquals(1, result.size(), "Should return 1 artist");
         verify(mockArtistDAO, times(1)).findWithPagination(0, 10);
     }
     
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testGetArtistsWithPagination_NegativePage_ThrowsException() {
         // Act & Assert
-        artistService.getArtistsWithPagination(-1, 10);
+        assertThrows(IllegalArgumentException.class, () -> {
+            artistService.getArtistsWithPagination(-1, 10);
+        });
     }
     
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testGetArtistsWithPagination_InvalidSize_ThrowsException() {
         // Act & Assert
-        artistService.getArtistsWithPagination(0, 0);
+        assertThrows(IllegalArgumentException.class, () -> {
+            artistService.getArtistsWithPagination(0, 0);
+        });
     }
     
     @Test
@@ -284,7 +301,7 @@ public class ArtistServiceTest {
         long result = artistService.getTotalArtistCount();
         
         // Assert
-        assertEquals("Count should match", 5L, result);
+        assertEquals(5L, result, "Count should match");
         verify(mockArtistDAO, times(1)).count();
     }
     
@@ -298,7 +315,7 @@ public class ArtistServiceTest {
         boolean result = artistService.artistExists(artistId);
         
         // Assert
-        assertTrue("Artist should exist", result);
+        assertTrue(result, "Artist should exist");
         verify(mockArtistDAO, times(1)).exists(artistId);
     }
     
@@ -312,7 +329,7 @@ public class ArtistServiceTest {
         boolean result = artistService.artistExists(artistId);
         
         // Assert
-        assertFalse("Artist should not exist", result);
+        assertFalse(result, "Artist should not exist");
         verify(mockArtistDAO, times(1)).exists(artistId);
     }
     
@@ -329,21 +346,25 @@ public class ArtistServiceTest {
         List<Artist> result = artistService.getArtistsByCountry(country);
         
         // Assert
-        assertNotNull("Results should not be null", result);
-        assertEquals("Should return 1 artist", 1, result.size());
+        assertNotNull(result, "Results should not be null");
+        assertEquals(1, result.size(), "Should return 1 artist");
         verify(mockArtistDAO, times(1)).findByCountry(country);
     }
     
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testGetArtistsByCountry_EmptyCountry_ThrowsException() {
         // Act & Assert
-        artistService.getArtistsByCountry("");
+        assertThrows(IllegalArgumentException.class, () -> {
+            artistService.getArtistsByCountry("");
+        });
     }
     
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testGetArtistsByCountry_NullCountry_ThrowsException() {
         // Act & Assert
-        artistService.getArtistsByCountry(null);
+        assertThrows(IllegalArgumentException.class, () -> {
+            artistService.getArtistsByCountry(null);
+        });
     }
     
     /**
