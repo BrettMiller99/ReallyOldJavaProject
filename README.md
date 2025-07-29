@@ -334,3 +334,5 @@ For questions and support regarding the Music Library API:
 ---
 
 **Music Library API** - A comprehensive solution for digital music collection management using proven Java enterprise technologies.
+
+> **Note**: This is a demonstration project showcasing traditional Java 7 enterprise patterns.
