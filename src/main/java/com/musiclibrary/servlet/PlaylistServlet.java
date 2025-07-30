@@ -3,7 +3,6 @@ package com.musiclibrary.servlet;
 import com.musiclibrary.model.Playlist;
 import com.musiclibrary.service.PlaylistService;
 import com.musiclibrary.util.JsonUtil;
-import org.json.JSONArray;
 import org.json.JSONObject;
 
 import jakarta.servlet.ServletException;

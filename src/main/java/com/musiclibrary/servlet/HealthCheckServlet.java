@@ -98,7 +98,6 @@ public class HealthCheckServlet extends HttpServlet {
         
         try {
             // Parse URL path to determine operation - manual routing
-            String pathInfo = request.getPathInfo();
             String requestURI = request.getRequestURI();
             
             if (requestURI.endsWith("/health")) {
@@ -293,7 +292,6 @@ public class HealthCheckServlet extends HttpServlet {
      */
     private boolean checkMemoryHealth() {
         try {
-            Runtime runtime = Runtime.getRuntime();
             double memoryUsagePercent = calculateMemoryUsagePercent();
             
             // Consider unhealthy if memory usage is above 90%
