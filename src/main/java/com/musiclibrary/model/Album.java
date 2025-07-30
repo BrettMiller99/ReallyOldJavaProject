@@ -1,13 +1,17 @@
 package com.musiclibrary.model;
 
-import java.util.Date;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import jakarta.persistence.*;
+import jakarta.validation.constraints.*;
+import java.util.List;
 
 /**
- * Album Model Class
+ * Album JPA Entity
  * 
- * Represents a music album entity in the music library system.
+ * Represents a music album entity in the music library system using JPA for persistence.
  * An album contains multiple songs and belongs to a specific artist.
- * This class follows traditional Java 7 JavaBean patterns.
+ * Migrated from traditional JDBC to Spring Data JPA with proper entity annotations.
  * 
  * Business Logic:
  * - Album represents a collection of songs released together
@@ -17,45 +21,78 @@ import java.util.Date;
  * - Genre classification supports music categorization and filtering
  * - Record label information provides industry context
  * 
- * Migration Opportunities:
- * - Manual getter/setter -> Lombok annotations
- * - Date type -> LocalDate (Java 8+)
- * - Manual validation -> Bean Validation annotations
- * - Traditional constructors -> Builder pattern
- * - Manual JSON handling -> Jackson annotations
- * - Basic relationship handling -> JPA @ManyToOne annotations
+ * JPA Features:
+ * - Entity mapping with @Entity and @Table annotations
+ * - Primary key generation with @GeneratedValue
+ * - Foreign key relationships with @ManyToOne and @OneToMany
+ * - Bean validation with @NotNull, @Size
+ * - Audit fields with @CreationTimestamp and @UpdateTimestamp
  * 
  * @author Music Library Development Team
- * @version 1.0
- * @since Java 7
+ * @version 2.0 - Migrated to JPA
+ * @since Java 17
  */
+@Entity
+@Table(name = "albums")
 public class Album {
     
-    // Primary key using traditional Long wrapper
+    // Primary key with JPA auto-generation
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "album_id")
     private Long albumId;
     
-    // Core album information
+    // Core album information with JPA validation
+    @NotNull(message = "Album name is required")
+    @Size(min = 1, max = 255, message = "Album name must be between 1 and 255 characters")
+    @Column(name = "album_name", nullable = false)
     private String albumName;      // Required - album title
-    private Long artistId;         // Required - foreign key to artists table
+    
+    @NotNull(message = "Artist is required")
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "artist_id", nullable = false)
+    private Artist artist;         // Many albums belong to one artist
+    
+    @Column(name = "artist_name")
     private String artistName;     // Denormalized for performance - legacy pattern
-    private Date releaseDate;      // Album release date
+    
+    @Column(name = "release_date")
+    private LocalDate releaseDate; // Album release date
+    
+    @Size(max = 100, message = "Genre must not exceed 100 characters")
+    @Column(name = "genre")
     private String genre;          // Music genre classification
+    
+    @Size(max = 255, message = "Record label must not exceed 255 characters")
+    @Column(name = "record_label")
     private String recordLabel;    // Publishing label information
+    
+    @Min(value = 0, message = "Total tracks cannot be negative")
+    @Column(name = "total_tracks")
     private Integer totalTracks;   // Number of tracks on album
+    
+    @Column(name = "album_art_path")
     private String albumArtPath;   // Path to album cover image
     
-    // Audit trail fields - enterprise standard
-    private Date createdDate;
-    private Date lastModified;
+    @OneToMany(mappedBy = "album", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<Song> songs;
+    
+    // Audit fields with JPA automatic timestamping
+    @Column(name = "created_date", nullable = false, updatable = false)
+    @org.hibernate.annotations.CreationTimestamp
+    private LocalDateTime createdDate;
+    
+    @Column(name = "last_modified", nullable = false)
+    @org.hibernate.annotations.UpdateTimestamp
+    private LocalDateTime lastModified;
     
     /**
      * Default no-argument constructor required for JavaBean specification.
-     * Initializes default values and audit timestamps.
+     * Initializes audit timestamps but leaves business fields null for proper JPA handling.
      */
     public Album() {
-        this.totalTracks = 0;
-        this.createdDate = new Date();
-        this.lastModified = new Date();
+        this.createdDate = LocalDateTime.now();
+        this.lastModified = LocalDateTime.now();
     }
     
     /**
@@ -63,24 +100,24 @@ public class Album {
      * Enforces business rule that album must have name and artist.
      * 
      * @param albumName Name of the album (required)
-     * @param artistId Artist identifier (required for referential integrity)
+     * @param artist Artist entity (required for referential integrity)
      */
-    public Album(String albumName, Long artistId) {
+    public Album(String albumName, Artist artist) {
         this();
         this.albumName = albumName;
-        this.artistId = artistId;
+        this.artist = artist;
     }
     
     /**
      * Constructor for creating album with core information.
      * 
      * @param albumName Name of the album (required)
-     * @param artistId Artist identifier (required)
+     * @param artist Artist entity (required)
      * @param releaseDate When album was released (optional)
      * @param genre Album genre classification (optional)
      */
-    public Album(String albumName, Long artistId, Date releaseDate, String genre) {
-        this(albumName, artistId);
+    public Album(String albumName, Artist artist, LocalDate releaseDate, String genre) {
+        this(albumName, artist);
         this.releaseDate = releaseDate;
         this.genre = genre;
     }
@@ -101,16 +138,33 @@ public class Album {
     
     public void setAlbumName(String albumName) {
         this.albumName = albumName;
-        this.lastModified = new Date();
+        this.lastModified = LocalDateTime.now();
+    }
+    
+    public Artist getArtist() {
+        return artist;
+    }
+    
+    public void setArtist(Artist artist) {
+        this.artist = artist;
+        this.lastModified = LocalDateTime.now();
+    }
+    
+    public List<Song> getSongs() {
+        return songs;
+    }
+    
+    public void setSongs(List<Song> songs) {
+        this.songs = songs;
+        this.lastModified = LocalDateTime.now();
     }
     
     public Long getArtistId() {
-        return artistId;
+        return artist != null ? artist.getArtistId() : null;
     }
     
     public void setArtistId(Long artistId) {
-        this.artistId = artistId;
-        this.lastModified = new Date();
+        this.lastModified = LocalDateTime.now();
     }
     
     public String getArtistName() {
@@ -119,16 +173,16 @@ public class Album {
     
     public void setArtistName(String artistName) {
         this.artistName = artistName;
-        this.lastModified = new Date();
+        this.lastModified = LocalDateTime.now();
     }
     
-    public Date getReleaseDate() {
+    public LocalDate getReleaseDate() {
         return releaseDate;
     }
     
-    public void setReleaseDate(Date releaseDate) {
+    public void setReleaseDate(LocalDate releaseDate) {
         this.releaseDate = releaseDate;
-        this.lastModified = new Date();
+        this.lastModified = LocalDateTime.now();
     }
     
     public String getGenre() {
@@ -137,7 +191,7 @@ public class Album {
     
     public void setGenre(String genre) {
         this.genre = genre;
-        this.lastModified = new Date();
+        this.lastModified = LocalDateTime.now();
     }
     
     public String getRecordLabel() {
@@ -146,7 +200,7 @@ public class Album {
     
     public void setRecordLabel(String recordLabel) {
         this.recordLabel = recordLabel;
-        this.lastModified = new Date();
+        this.lastModified = LocalDateTime.now();
     }
     
     public Integer getTotalTracks() {
@@ -155,7 +209,7 @@ public class Album {
     
     public void setTotalTracks(Integer totalTracks) {
         this.totalTracks = totalTracks;
-        this.lastModified = new Date();
+        this.lastModified = LocalDateTime.now();
     }
     
     public String getAlbumArtPath() {
@@ -164,22 +218,22 @@ public class Album {
     
     public void setAlbumArtPath(String albumArtPath) {
         this.albumArtPath = albumArtPath;
-        this.lastModified = new Date();
+        this.lastModified = LocalDateTime.now();
     }
     
-    public Date getCreatedDate() {
+    public LocalDateTime getCreatedDate() {
         return createdDate;
     }
     
-    public void setCreatedDate(Date createdDate) {
+    public void setCreatedDate(LocalDateTime createdDate) {
         this.createdDate = createdDate;
     }
     
-    public Date getLastModified() {
+    public LocalDateTime getLastModified() {
         return lastModified;
     }
     
-    public void setLastModified(Date lastModified) {
+    public void setLastModified(LocalDateTime lastModified) {
         this.lastModified = lastModified;
     }
     
@@ -191,7 +245,7 @@ public class Album {
      */
     public boolean isValid() {
         return albumName != null && !albumName.trim().isEmpty() &&
-               artistId != null;
+               artist != null;
     }
     
     /**
@@ -278,7 +332,7 @@ public class Album {
         
         if (albumId != null ? !albumId.equals(album.albumId) : album.albumId != null) return false;
         if (albumName != null ? !albumName.equals(album.albumName) : album.albumName != null) return false;
-        if (artistId != null ? !artistId.equals(album.artistId) : album.artistId != null) return false;
+        if (artist != null ? !artist.equals(album.artist) : album.artist != null) return false;
         
         return true;
     }
@@ -287,7 +341,7 @@ public class Album {
     public int hashCode() {
         int result = albumId != null ? albumId.hashCode() : 0;
         result = 31 * result + (albumName != null ? albumName.hashCode() : 0);
-        result = 31 * result + (artistId != null ? artistId.hashCode() : 0);
+        result = 31 * result + (artist != null ? artist.hashCode() : 0);
         return result;
     }
 }

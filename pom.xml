@@ -2,9 +2,9 @@
 <!--
     Music Library API - Maven Project Configuration
     
-    This POM file is designed with Java 7 enterprise patterns for migration demonstration.
-    Key migration opportunities:
-    - Java 7 -> Java 21 compliance 
+    This POM file is designed with Java 17 enterprise patterns for migration demonstration.
+    Key migration opportunities completed:
+    - Java 7 -> Java 17 compliance 
     - Traditional servlet API -> Spring Boot
     - JUnit 4 -> JUnit 5
     - Manual JSON handling -> Jackson
@@ -20,61 +20,79 @@
     <groupId>com.musiclibrary</groupId>
     <artifactId>music-library-api</artifactId>
     <version>1.0.0</version>
-    <packaging>war</packaging>
+    <packaging>jar</packaging>
     
     <name>Music Library API</name>
-    <description>Legacy Java 7 Music Library API for migration demonstration</description>
+    <description>Modern Java 17 Music Library API with Spring Boot</description>
     
     <properties>
-        <!-- Java 8 compatibility - updated from Java 7 due to environment constraints
-             All code still uses Java 7 patterns for migration demonstration -->
-        <maven.compiler.source>1.8</maven.compiler.source>
-        <maven.compiler.target>1.8</maven.compiler.target>
+        <!-- Java 17 compatibility - upgraded from Java 8 for modern development -->
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         
-        <!-- Legacy dependency versions typical of Java 7 era -->
-        <servlet.version>3.0.1</servlet.version>
-        <h2.version>1.3.176</h2.version>
-        <junit.version>4.11</junit.version>
-        <mockito.version>2.28.2</mockito.version>
+        <!-- Spring Boot and modern dependency versions -->
+        <spring.boot.version>3.2.0</spring.boot.version>
+        <h2.version>2.2.224</h2.version>
+        <junit.version>5.10.1</junit.version>
+        <mockito.version>5.7.0</mockito.version>
+        <assertj.version>3.24.2</assertj.version>
+        <slf4j.version>2.0.9</slf4j.version>
+        <logback.version>1.4.14</logback.version>
     </properties>
     
     <dependencies>
-        <!-- Servlet API - Traditional Java EE approach -->
+        <!-- Spring Boot Starter Web - Replaces traditional servlet API -->
         <dependency>
-            <groupId>javax.servlet</groupId>
-            <artifactId>javax.servlet-api</artifactId>
-            <version>${servlet.version}</version>
-            <scope>provided</scope>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+            <version>${spring.boot.version}</version>
         </dependency>
         
-        <!-- H2 Database - In-memory database for demo -->
+        <!-- Spring Boot Starter Data JPA - Replaces manual JDBC -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+            <version>${spring.boot.version}</version>
+        </dependency>
+        
+        <!-- Spring Boot Starter Validation - Bean validation support -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+            <version>${spring.boot.version}</version>
+        </dependency>
+        
+        <!-- H2 Database - Updated version for Spring Boot compatibility -->
         <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
             <version>${h2.version}</version>
+            <scope>runtime</scope>
         </dependency>
         
-        <!-- Basic JSON handling - manual approach for migration opportunity -->
+        <!-- Spring Boot Starter Test - Includes JUnit 5, Mockito, AssertJ -->
         <dependency>
-            <groupId>org.json</groupId>
-            <artifactId>json</artifactId>
-            <version>20140107</version>
-        </dependency>
-        
-        <!-- Testing dependencies using older patterns -->
-        <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
-            <version>${junit.version}</version>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <version>${spring.boot.version}</version>
             <scope>test</scope>
         </dependency>
         
+        <!-- Spring Boot DevTools - Development productivity -->
         <dependency>
-            <groupId>org.mockito</groupId>
-            <artifactId>mockito-core</artifactId>
-            <version>${mockito.version}</version>
-            <scope>test</scope>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-devtools</artifactId>
+            <version>${spring.boot.version}</version>
+            <scope>runtime</scope>
+            <optional>true</optional>
+        </dependency>
+        
+        <!-- Spring Boot Actuator - Health checks and metrics -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+            <version>${spring.boot.version}</version>
         </dependency>
     </dependencies>
     
@@ -82,47 +100,66 @@
         <finalName>music-library-api</finalName>
         
         <plugins>
-            <!-- Traditional Maven Compiler Plugin configuration
-                 Updated to support Java 8 while preserving Java 7 coding patterns -->
+            <!-- Maven Compiler Plugin - Java 17 configuration -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.8.1</version>
+                <version>3.11.0</version>
                 <configuration>
-                    <source>1.8</source>
-                    <target>1.8</target>
+                    <source>17</source>
+                    <target>17</target>
+                    <release>17</release>
+                    <parameters>true</parameters>
                 </configuration>
             </plugin>
             
-            <!-- War Plugin for traditional deployment -->
+            <!-- Spring Boot Maven Plugin - Replaces Jetty plugin -->
             <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-war-plugin</artifactId>
-                <version>2.4</version>
-                <configuration>
-                    <webXml>src\main\webapp\WEB-INF\web.xml</webXml>
-                </configuration>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <version>${spring.boot.version}</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>repackage</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
             
-            <!-- Surefire for unit testing -->
+            <!-- Surefire Plugin - Updated for JUnit 5 -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
-                <version>2.18.1</version>
+                <version>3.2.2</version>
             </plugin>
             
-            <!-- Jetty plugin for development server -->
+            <!-- Failsafe Plugin - Integration testing -->
             <plugin>
-                <groupId>org.eclipse.jetty</groupId>
-                <artifactId>jetty-maven-plugin</artifactId>
-                <version>9.0.7.v20131107</version>
-                <configuration>
-                    <httpConnector>
-                        <port>8080</port>
-                    </httpConnector>
-                    <stopKey>STOP</stopKey>
-                    <stopPort>9999</stopPort>
-                </configuration>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-failsafe-plugin</artifactId>
+                <version>3.2.2</version>
+            </plugin>
+            
+            <!-- JaCoCo Plugin - Code coverage -->
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>0.8.11</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>report</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>

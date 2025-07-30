@@ -1,12 +1,15 @@
 package com.musiclibrary.model;
 
-import java.util.Date;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import jakarta.persistence.*;
+import jakarta.validation.constraints.*;
 
 /**
- * Song Model Class
+ * Song JPA Entity
  * 
- * Represents a song entity in the music library system.
- * This class follows traditional Java 7 JavaBean patterns with verbose getter/setter methods.
+ * Represents a song entity in the music library system using JPA for persistence.
+ * Migrated from traditional JDBC to Spring Data JPA with proper entity annotations.
  * 
  * Business Logic:
  * - Song must have a name, artist, and track length (core requirements)
@@ -15,56 +18,106 @@ import java.util.Date;
  * - Play count tracks usage statistics for recommendation algorithms
  * - File path enables integration with actual music file storage
  * 
- * Migration Opportunities:
- * - Manual getter/setter generation -> Lombok annotations
- * - Date type -> LocalDateTime/LocalDate (Java 8+)
- * - Manual validation -> Bean Validation annotations
- * - Manual JSON serialization -> Jackson annotations
- * - Traditional constructors -> Builder pattern
+ * JPA Features:
+ * - Entity mapping with @Entity and @Table annotations
+ * - Primary key generation with @GeneratedValue
+ * - Foreign key relationships with @ManyToOne
+ * - Bean validation with @NotNull, @Size, @Min, @Max
+ * - Audit fields with @CreationTimestamp and @UpdateTimestamp
  * 
  * @author Music Library Development Team
- * @version 1.0
- * @since Java 7
+ * @version 2.0 - Migrated to JPA
+ * @since Java 17
  */
+@Entity
+@Table(name = "songs")
 public class Song {
     
-    // Primary key - traditional long type approach
+    // Primary key with JPA auto-generation
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "song_id")
     private Long songId;
     
-    // Required fields as per specification
+    // Required fields with JPA validation
+    @NotNull(message = "Song name is required")
+    @Size(min = 1, max = 255, message = "Song name must be between 1 and 255 characters")
+    @Column(name = "song_name", nullable = false)
     private String songName;      // Required: SongName field
-    private String albumName;     // Required: AlbumName field  
-    private Date dateReleased;    // Required: DateReleased field
+    
+    @Column(name = "album_name")
+    private String albumName;     // AlbumName field - denormalized for performance
+    
+    @NotNull(message = "Release date is required")
+    @Column(name = "date_released", nullable = false)
+    private LocalDate dateReleased;    // Required: DateReleased field
+    
+    @NotNull(message = "Track length is required")
+    @Min(value = 1, message = "Track length must be positive")
+    @Column(name = "track_length", nullable = false)
     private Integer trackLength;  // Required: TrackLength field (in seconds)
     
-    // Additional business-relevant fields
-    private Long albumId;         // Foreign key to albums table
-    private Long artistId;        // Foreign key to artists table - required for business logic
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "album_id")
+    private Album album;          // Many songs belong to one album
+    
+    @NotNull(message = "Artist is required")
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "artist_id", nullable = false)
+    private Artist artist;        // Many songs belong to one artist - required for business logic
+    
+    // Additional business-relevant fields with JPA annotations
+    @Column(name = "artist_name")
     private String artistName;    // Denormalized for performance - typical legacy pattern
+    
+    @Column(name = "track_number")
     private Integer trackNumber;  // Track position within album
+    
+    @Size(max = 100, message = "Genre must not exceed 100 characters")
+    @Column(name = "genre")
     private String genre;         // Music genre classification
+    
+    @Column(name = "file_path")
     private String filePath;      // Path to actual music file
+    
+    @Column(name = "file_size")
     private Long fileSize;        // File size in bytes
+    
+    @Column(name = "bitrate")
     private Integer bitrate;      // Audio quality indicator
+    
+    @Min(value = 0, message = "Rating must be between 0 and 5")
+    @Max(value = 5, message = "Rating must be between 0 and 5")
+    @Column(name = "rating")
     private Integer rating;       // User rating 0-5 stars
+    
+    @Min(value = 0, message = "Play count cannot be negative")
+    @Column(name = "play_count")
     private Integer playCount;    // Usage tracking for analytics
-    private Date lastPlayed;      // Most recent play timestamp
+    
+    @Column(name = "last_played")
+    private LocalDateTime lastPlayed;      // Most recent play timestamp
+    
+    @Column(name = "lyrics", columnDefinition = "TEXT")
     private String lyrics;        // Song lyrics content
     
-    // Audit fields - traditional enterprise pattern
-    private Date createdDate;
-    private Date lastModified;
+    // Audit fields with JPA automatic timestamping
+    @Column(name = "created_date", nullable = false, updatable = false)
+    @org.hibernate.annotations.CreationTimestamp
+    private LocalDateTime createdDate;
+    
+    @Column(name = "last_modified", nullable = false)
+    @org.hibernate.annotations.UpdateTimestamp
+    private LocalDateTime lastModified;
     
     /**
      * Default constructor required for JavaBean specification.
      * Essential for reflection-based frameworks and JSON serialization.
      */
     public Song() {
-        // Initialize default values following business rules
-        this.rating = 0;
-        this.playCount = 0;
-        this.createdDate = new Date();
-        this.lastModified = new Date();
+        // Initialize audit timestamps but leave business fields null for proper JPA handling
+        this.createdDate = LocalDateTime.now();
+        this.lastModified = LocalDateTime.now();
     }
     
     /**
@@ -72,14 +125,14 @@ public class Song {
      * Enforces business rule that songs must have basic information.
      * 
      * @param songName Name of the song (required)
-     * @param artistId Artist identifier (required for referential integrity)
+     * @param artist Artist entity (required for referential integrity)
      * @param trackLength Duration in seconds (required for playback)
      * @param dateReleased Release date (required for chronological sorting)
      */
-    public Song(String songName, Long artistId, Integer trackLength, Date dateReleased) {
+    public Song(String songName, Artist artist, Integer trackLength, LocalDate dateReleased) {
         this(); // Call default constructor for initialization
         this.songName = songName;
-        this.artistId = artistId;
+        this.artist = artist;
         this.trackLength = trackLength;
         this.dateReleased = dateReleased;
     }
@@ -101,7 +154,7 @@ public class Song {
     
     public void setSongName(String songName) {
         this.songName = songName;
-        this.lastModified = new Date(); // Audit trail
+        this.lastModified = LocalDateTime.now(); // Audit trail
     }
     
     public String getAlbumName() {
@@ -110,16 +163,16 @@ public class Song {
     
     public void setAlbumName(String albumName) {
         this.albumName = albumName;
-        this.lastModified = new Date();
+        this.lastModified = LocalDateTime.now();
     }
     
-    public Date getDateReleased() {
+    public LocalDate getDateReleased() {
         return dateReleased;
     }
     
-    public void setDateReleased(Date dateReleased) {
+    public void setDateReleased(LocalDate dateReleased) {
         this.dateReleased = dateReleased;
-        this.lastModified = new Date();
+        this.lastModified = LocalDateTime.now();
     }
     
     public Integer getTrackLength() {
@@ -128,25 +181,41 @@ public class Song {
     
     public void setTrackLength(Integer trackLength) {
         this.trackLength = trackLength;
-        this.lastModified = new Date();
+        this.lastModified = LocalDateTime.now();
+    }
+    
+    public Album getAlbum() {
+        return album;
+    }
+    
+    public void setAlbum(Album album) {
+        this.album = album;
+        this.lastModified = LocalDateTime.now();
+    }
+    
+    public Artist getArtist() {
+        return artist;
+    }
+    
+    public void setArtist(Artist artist) {
+        this.artist = artist;
+        this.lastModified = LocalDateTime.now();
     }
     
     public Long getAlbumId() {
-        return albumId;
+        return album != null ? album.getAlbumId() : null;
     }
     
     public void setAlbumId(Long albumId) {
-        this.albumId = albumId;
-        this.lastModified = new Date();
+        this.lastModified = LocalDateTime.now();
     }
     
     public Long getArtistId() {
-        return artistId;
+        return artist != null ? artist.getArtistId() : null;
     }
     
     public void setArtistId(Long artistId) {
-        this.artistId = artistId;
-        this.lastModified = new Date();
+        this.lastModified = LocalDateTime.now();
     }
     
     public String getArtistName() {
@@ -155,7 +224,7 @@ public class Song {
     
     public void setArtistName(String artistName) {
         this.artistName = artistName;
-        this.lastModified = new Date();
+        this.lastModified = LocalDateTime.now();
     }
     
     public Integer getTrackNumber() {
@@ -164,7 +233,7 @@ public class Song {
     
     public void setTrackNumber(Integer trackNumber) {
         this.trackNumber = trackNumber;
-        this.lastModified = new Date();
+        this.lastModified = LocalDateTime.now();
     }
     
     public String getGenre() {
@@ -173,7 +242,7 @@ public class Song {
     
     public void setGenre(String genre) {
         this.genre = genre;
-        this.lastModified = new Date();
+        this.lastModified = LocalDateTime.now();
     }
     
     public String getFilePath() {
@@ -182,7 +251,7 @@ public class Song {
     
     public void setFilePath(String filePath) {
         this.filePath = filePath;
-        this.lastModified = new Date();
+        this.lastModified = LocalDateTime.now();
     }
     
     public Long getFileSize() {
@@ -191,7 +260,7 @@ public class Song {
     
     public void setFileSize(Long fileSize) {
         this.fileSize = fileSize;
-        this.lastModified = new Date();
+        this.lastModified = LocalDateTime.now();
     }
     
     public Integer getBitrate() {
@@ -200,7 +269,7 @@ public class Song {
     
     public void setBitrate(Integer bitrate) {
         this.bitrate = bitrate;
-        this.lastModified = new Date();
+        this.lastModified = LocalDateTime.now();
     }
     
     public Integer getRating() {
@@ -219,7 +288,7 @@ public class Song {
             throw new IllegalArgumentException("Rating must be between 0 and 5 stars");
         }
         this.rating = rating;
-        this.lastModified = new Date();
+        this.lastModified = LocalDateTime.now();
     }
     
     public Integer getPlayCount() {
@@ -228,7 +297,7 @@ public class Song {
     
     public void setPlayCount(Integer playCount) {
         this.playCount = playCount;
-        this.lastModified = new Date();
+        this.lastModified = LocalDateTime.now();
     }
     
     /**
@@ -240,17 +309,17 @@ public class Song {
             this.playCount = 0;
         }
         this.playCount++;
-        this.lastPlayed = new Date();
-        this.lastModified = new Date();
+        this.lastPlayed = LocalDateTime.now();
+        this.lastModified = LocalDateTime.now();
     }
     
-    public Date getLastPlayed() {
+    public LocalDateTime getLastPlayed() {
         return lastPlayed;
     }
     
-    public void setLastPlayed(Date lastPlayed) {
+    public void setLastPlayed(LocalDateTime lastPlayed) {
         this.lastPlayed = lastPlayed;
-        this.lastModified = new Date();
+        this.lastModified = LocalDateTime.now();
     }
     
     public String getLyrics() {
@@ -259,22 +328,22 @@ public class Song {
     
     public void setLyrics(String lyrics) {
         this.lyrics = lyrics;
-        this.lastModified = new Date();
+        this.lastModified = LocalDateTime.now();
     }
     
-    public Date getCreatedDate() {
+    public LocalDateTime getCreatedDate() {
         return createdDate;
     }
     
-    public void setCreatedDate(Date createdDate) {
+    public void setCreatedDate(LocalDateTime createdDate) {
         this.createdDate = createdDate;
     }
     
-    public Date getLastModified() {
+    public LocalDateTime getLastModified() {
         return lastModified;
     }
     
-    public void setLastModified(Date lastModified) {
+    public void setLastModified(LocalDateTime lastModified) {
         this.lastModified = lastModified;
     }
     
@@ -302,7 +371,7 @@ public class Song {
      */
     public boolean isValid() {
         return songName != null && !songName.trim().isEmpty() &&
-               artistId != null &&
+               artist != null &&
                trackLength != null && trackLength > 0 &&
                dateReleased != null;
     }
@@ -311,11 +380,14 @@ public class Song {
     // Modern equivalent would use Lombok @ToString or Apache Commons
     @Override
     public String toString() {
+        String displayArtistName = (artist != null) ? artist.getArtistName() : artistName;
+        String displayAlbumName = (album != null) ? album.getAlbumName() : albumName;
+        
         return "Song{" +
                 "songId=" + songId +
                 ", songName='" + songName + '\'' +
-                ", albumName='" + albumName + '\'' +
-                ", artistName='" + artistName + '\'' +
+                ", albumName='" + displayAlbumName + '\'' +
+                ", artistName='" + displayArtistName + '\'' +
                 ", trackLength=" + trackLength +
                 ", dateReleased=" + dateReleased +
                 ", genre='" + genre + '\'' +
@@ -335,7 +407,7 @@ public class Song {
         
         if (songId != null ? !songId.equals(song.songId) : song.songId != null) return false;
         if (songName != null ? !songName.equals(song.songName) : song.songName != null) return false;
-        if (artistId != null ? !artistId.equals(song.artistId) : song.artistId != null) return false;
+        if (artist != null ? !artist.equals(song.artist) : song.artist != null) return false;
         
         return true;
     }
@@ -344,7 +416,7 @@ public class Song {
     public int hashCode() {
         int result = songId != null ? songId.hashCode() : 0;
         result = 31 * result + (songName != null ? songName.hashCode() : 0);
-        result = 31 * result + (artistId != null ? artistId.hashCode() : 0);
+        result = 31 * result + (artist != null ? artist.hashCode() : 0);
         return result;
     }
 }

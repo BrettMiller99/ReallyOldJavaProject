@@ -1,13 +1,16 @@
 package com.musiclibrary.model;
 
-import java.util.Date;
+import java.time.LocalDateTime;
+import jakarta.persistence.*;
+import jakarta.validation.constraints.*;
+import java.util.List;
 
 /**
- * Playlist Model Class
+ * Playlist JPA Entity
  * 
- * Represents a user-created playlist entity in the music library system.
+ * Represents a user-created playlist entity in the music library system using JPA for persistence.
  * Playlists contain ordered collections of songs for customized listening experiences.
- * This class follows traditional Java 7 JavaBean patterns.
+ * Migrated from traditional JDBC to Spring Data JPA with proper entity annotations.
  * 
  * Business Logic:
  * - Playlist represents user-curated song collections
@@ -17,34 +20,71 @@ import java.util.Date;
  * - Public/private visibility controls playlist sharing
  * - Song count maintains playlist metadata integrity
  * 
- * Migration Opportunities:
- * - Manual getter/setter -> Lombok annotations
- * - Date type -> LocalDateTime (Java 8+)
- * - Manual validation -> Bean Validation annotations
- * - Traditional constructors -> Builder pattern
- * - Manual JSON handling -> Jackson annotations
- * - Basic relationship handling -> JPA @ManyToMany annotations
+ * JPA Features:
+ * - Entity mapping with @Entity and @Table annotations
+ * - Primary key generation with @GeneratedValue
+ * - Many-to-many relationships with @ManyToMany for songs
+ * - Bean validation with @NotNull, @Size
+ * - Audit fields with @CreationTimestamp and @UpdateTimestamp
+ * - Composite unique constraint on playlist name and creator
  * 
  * @author Music Library Development Team
- * @version 1.0
- * @since Java 7
+ * @version 2.0 - Migrated to JPA
+ * @since Java 17
  */
+@Entity
+@Table(name = "playlists", uniqueConstraints = {
+    @UniqueConstraint(columnNames = {"playlist_name", "created_by"})
+})
 public class Playlist {
     
-    // Primary key using traditional Long wrapper
+    // Primary key with JPA auto-generation
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "playlist_id")
     private Long playlistId;
     
-    // Core playlist information
+    // Core playlist information with JPA validation
+    @NotNull(message = "Playlist name is required")
+    @Size(min = 1, max = 255, message = "Playlist name must be between 1 and 255 characters")
+    @Column(name = "playlist_name", nullable = false)
     private String playlistName;   // Required - playlist identifier
+    
+    @Column(name = "description", columnDefinition = "TEXT")
     private String description;    // Optional - playlist description
+    
+    @NotNull(message = "Creator is required")
+    @Size(min = 1, max = 100, message = "Creator name must be between 1 and 100 characters")
+    @Column(name = "created_by", nullable = false)
     private String createdBy;      // Required - user who created playlist
+    
+    @Column(name = "is_public")
     private Boolean isPublic;      // Visibility control - default true
+    
+    @Min(value = 0, message = "Total duration cannot be negative")
+    @Column(name = "total_duration")
     private Integer totalDuration; // Total duration in seconds
+    
+    @Min(value = 0, message = "Song count cannot be negative")
+    @Column(name = "song_count")
     private Integer songCount;     // Number of songs in playlist
     
-    // Audit trail fields - enterprise standard
-    private Date createdDate;
-    private Date lastModified;
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+        name = "playlist_songs",
+        joinColumns = @JoinColumn(name = "playlist_id"),
+        inverseJoinColumns = @JoinColumn(name = "song_id")
+    )
+    private List<Song> songs;
+    
+    // Audit fields with JPA automatic timestamping
+    @Column(name = "created_date", nullable = false, updatable = false)
+    @org.hibernate.annotations.CreationTimestamp
+    private LocalDateTime createdDate;
+    
+    @Column(name = "last_modified", nullable = false)
+    @org.hibernate.annotations.UpdateTimestamp
+    private LocalDateTime lastModified;
     
     /**
      * Default no-argument constructor required for JavaBean specification.
@@ -55,8 +95,8 @@ public class Playlist {
         this.totalDuration = 0;        // Initialize to empty playlist
         this.songCount = 0;            // Initialize to empty playlist
         this.createdBy = "system";     // Default creator
-        this.createdDate = new Date();
-        this.lastModified = new Date();
+        this.createdDate = LocalDateTime.now();
+        this.lastModified = LocalDateTime.now();
     }
     
     /**
@@ -102,7 +142,7 @@ public class Playlist {
     
     public void setPlaylistName(String playlistName) {
         this.playlistName = playlistName;
-        this.lastModified = new Date();
+        this.lastModified = LocalDateTime.now();
     }
     
     public String getDescription() {
@@ -111,7 +151,7 @@ public class Playlist {
     
     public void setDescription(String description) {
         this.description = description;
-        this.lastModified = new Date();
+        this.lastModified = LocalDateTime.now();
     }
     
     public String getCreatedBy() {
@@ -120,7 +160,7 @@ public class Playlist {
     
     public void setCreatedBy(String createdBy) {
         this.createdBy = createdBy;
-        this.lastModified = new Date();
+        this.lastModified = LocalDateTime.now();
     }
     
     public Boolean getIsPublic() {
@@ -129,7 +169,7 @@ public class Playlist {
     
     public void setIsPublic(Boolean isPublic) {
         this.isPublic = isPublic;
-        this.lastModified = new Date();
+        this.lastModified = LocalDateTime.now();
     }
     
     public Integer getTotalDuration() {
@@ -138,7 +178,7 @@ public class Playlist {
     
     public void setTotalDuration(Integer totalDuration) {
         this.totalDuration = totalDuration;
-        this.lastModified = new Date();
+        this.lastModified = LocalDateTime.now();
     }
     
     public Integer getSongCount() {
@@ -147,22 +187,31 @@ public class Playlist {
     
     public void setSongCount(Integer songCount) {
         this.songCount = songCount;
-        this.lastModified = new Date();
+        this.lastModified = LocalDateTime.now();
     }
     
-    public Date getCreatedDate() {
+    public List<Song> getSongs() {
+        return songs;
+    }
+    
+    public void setSongs(List<Song> songs) {
+        this.songs = songs;
+        this.lastModified = LocalDateTime.now();
+    }
+    
+    public LocalDateTime getCreatedDate() {
         return createdDate;
     }
     
-    public void setCreatedDate(Date createdDate) {
+    public void setCreatedDate(LocalDateTime createdDate) {
         this.createdDate = createdDate;
     }
     
-    public Date getLastModified() {
+    public LocalDateTime getLastModified() {
         return lastModified;
     }
     
-    public void setLastModified(Date lastModified) {
+    public void setLastModified(LocalDateTime lastModified) {
         this.lastModified = lastModified;
     }
     
@@ -216,7 +265,7 @@ public class Playlist {
             
             this.totalDuration += songDuration;
             this.songCount++;
-            this.lastModified = new Date();
+            this.lastModified = LocalDateTime.now();
         }
     }
     
@@ -234,7 +283,7 @@ public class Playlist {
             if (this.songCount != null && this.songCount > 0) {
                 this.songCount--;
             }
-            this.lastModified = new Date();
+            this.lastModified = LocalDateTime.now();
         }
     }
     

@@ -1,278 +1,297 @@
 package com.musiclibrary.service;
 
-import com.musiclibrary.dao.SongDAO;
 import com.musiclibrary.model.Song;
-import org.junit.Before;
-import org.junit.Test;
+import com.musiclibrary.model.Artist;
+import com.musiclibrary.model.Album;
+import com.musiclibrary.repository.SongRepository;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
-import java.sql.SQLException;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
+import java.util.Optional;
 
-import static org.junit.Assert.*;
+import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 /**
- * Unit tests for SongService using traditional Java 7 testing patterns.
+ * Unit tests for SongService using modern Java 17 testing patterns.
  * 
  * Testing Approach:
- * - Uses JUnit 4 for traditional test framework support (pre-Java 8)
- * - Uses Mockito 1.x for mocking DAO dependencies
+ * - Uses JUnit 5 with @ExtendWith for automatic mock injection
+ * - Uses modern Mockito with improved syntax
  * - Tests business logic validation and error handling
  * - Verifies service layer behavior independent of database
- * - Demonstrates legacy testing patterns for migration reference
+ * - Uses AssertJ fluent assertions for better readability
  * 
- * Migration Opportunities:
- * - JUnit 4 -> JUnit 5 with @ExtendWith annotations
- * - Mockito 1.x -> Mockito 3+ with improved syntax
- * - Manual MockitoAnnotations.initMocks() -> @MockitoJUnitRunner
- * - Traditional assertions -> AssertJ fluent assertions
- * - @Before -> @BeforeEach
+ * Modern Features:
+ * - JUnit 5 with @ExtendWith for automatic mock injection
+ * - AssertJ fluent assertions for better readability
+ * - Modern exception testing with assertThatThrownBy
+ * - Automatic mock initialization via MockitoExtension
  * 
  * @author Music Library Development Team
- * @version 1.0
- * @since Java 7
+ * @version 2.0
+ * @since Java 17
  */
-public class SongServiceTest {
+@ExtendWith(MockitoExtension.class)
+class SongServiceTest {
     
     @Mock
-    private SongDAO mockSongDAO;
+    private SongRepository mockSongRepository;
     
     private SongService songService;
     
-    @Before
-    public void setUp() {
-        MockitoAnnotations.initMocks(this);
-        songService = new SongService(mockSongDAO);
+    @BeforeEach
+    void setUp() {
+        songService = new SongService(mockSongRepository);
     }
     
     @Test
-    public void testCreateSong_ValidSong_Success() throws SQLException {
+    void testCreateSong_ValidSong_Success() {
         // Arrange
         Song inputSong = createValidSong();
         Song expectedSong = createValidSong();
         expectedSong.setSongId(1L);
         
-        when(mockSongDAO.create(any(Song.class))).thenReturn(expectedSong);
+        when(mockSongRepository.save(any(Song.class))).thenReturn(expectedSong);
         
         // Act
         Song result = songService.createSong(inputSong);
         
         // Assert
-        assertNotNull("Created song should not be null", result);
-        assertEquals("Song ID should be set", Long.valueOf(1L), result.getSongId());
-        assertEquals("Song name should match", "Test Song", result.getSongName());
-        verify(mockSongDAO, times(1)).create(any(Song.class));
+        assertThat(result).isNotNull();
+        assertThat(result.getSongId()).isEqualTo(1L);
+        assertThat(result.getSongName()).isEqualTo("Test Song");
+        verify(mockSongRepository, times(1)).save(any(Song.class));
     }
     
-    @Test(expected = IllegalArgumentException.class)
-    public void testCreateSong_NullSong_ThrowsException() {
+    @Test
+    void testCreateSong_NullSong_ThrowsException() {
         // Act & Assert
-        songService.createSong(null);
+        assertThatThrownBy(() -> songService.createSong(null))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessage("Song cannot be null");
     }
     
-    @Test(expected = IllegalArgumentException.class)
-    public void testCreateSong_EmptySongName_ThrowsException() {
+    @Test
+    void testCreateSong_EmptySongName_ThrowsException() {
         // Arrange
         Song song = createValidSong();
         song.setSongName("");
         
         // Act & Assert
-        songService.createSong(song);
+        assertThatThrownBy(() -> songService.createSong(song))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("Song data is incomplete or invalid");
     }
     
-    @Test(expected = IllegalArgumentException.class)
-    public void testCreateSong_NullSongName_ThrowsException() {
+    @Test
+    void testCreateSong_NullSongName_ThrowsException() {
         // Arrange
         Song song = createValidSong();
         song.setSongName(null);
         
         // Act & Assert
-        songService.createSong(song);
-    }
-    
-    @Test(expected = RuntimeException.class)
-    public void testCreateSong_DatabaseError_ThrowsRuntimeException() throws SQLException {
-        // Arrange
-        Song song = createValidSong();
-        when(mockSongDAO.create(any(Song.class))).thenThrow(new SQLException("DB error"));
-        
-        // Act & Assert
-        songService.createSong(song);
+        assertThatThrownBy(() -> songService.createSong(song))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("Song data is incomplete or invalid");
     }
     
     @Test
-    public void testGetSongById_ValidId_Success() throws SQLException {
+    void testCreateSong_DatabaseError_ThrowsRuntimeException() {
+        // Arrange
+        Song song = createValidSong();
+        when(mockSongRepository.save(any(Song.class))).thenThrow(new RuntimeException("DB error"));
+        
+        // Act & Assert
+        assertThatThrownBy(() -> songService.createSong(song))
+            .isInstanceOf(RuntimeException.class)
+            .hasMessageContaining("Failed to create song");
+    }
+    
+    @Test
+    void testGetSongById_ValidId_Success() {
         // Arrange
         Long songId = 1L;
         Song expectedSong = createValidSong();
         expectedSong.setSongId(songId);
         
-        when(mockSongDAO.findById(songId)).thenReturn(expectedSong);
+        when(mockSongRepository.findById(songId)).thenReturn(Optional.of(expectedSong));
         
         // Act
         Song result = songService.getSongById(songId);
         
         // Assert
-        assertNotNull("Retrieved song should not be null", result);
-        assertEquals("Song ID should match", songId, result.getSongId());
-        verify(mockSongDAO, times(1)).findById(songId);
-    }
-    
-    @Test(expected = IllegalArgumentException.class)
-    public void testGetSongById_NullId_ThrowsException() {
-        // Act & Assert
-        songService.getSongById(null);
-    }
-    
-    @Test(expected = IllegalArgumentException.class)
-    public void testGetSongById_InvalidId_ThrowsException() {
-        // Act & Assert
-        songService.getSongById(0L);
+        assertThat(result).isNotNull();
+        assertThat(result.getSongId()).isEqualTo(songId);
+        verify(mockSongRepository, times(1)).findById(songId);
     }
     
     @Test
-    public void testGetAllSongs_Success() throws SQLException {
+    void testGetSongById_NullId_ThrowsException() {
+        // Act & Assert
+        assertThatThrownBy(() -> songService.getSongById(null))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("Invalid song ID provided");
+    }
+    
+    @Test
+    void testGetSongById_InvalidId_ThrowsException() {
+        // Act & Assert
+        assertThatThrownBy(() -> songService.getSongById(0L))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("Invalid song ID provided");
+    }
+    
+    @Test
+    void testGetAllSongs_Success() {
         // Arrange
         List<Song> expectedSongs = new ArrayList<Song>();
         expectedSongs.add(createValidSong());
         expectedSongs.add(createValidSong());
         
-        when(mockSongDAO.findAll()).thenReturn(expectedSongs);
+        when(mockSongRepository.findAll()).thenReturn(expectedSongs);
         
         // Act
         List<Song> result = songService.getAllSongs();
         
         // Assert
-        assertNotNull("Songs list should not be null", result);
-        assertEquals("Should return 2 songs", 2, result.size());
-        verify(mockSongDAO, times(1)).findAll();
+        assertThat(result).isNotNull();
+        assertThat(result).hasSize(2);
+        verify(mockSongRepository, times(1)).findAll();
     }
     
     @Test
-    public void testUpdateSong_ValidSong_Success() throws SQLException {
+    void testUpdateSong_ValidSong_Success() {
         // Arrange
         Song song = createValidSong();
         song.setSongId(1L);
         
-        when(mockSongDAO.update(any(Song.class))).thenReturn(song);
+        when(mockSongRepository.save(any(Song.class))).thenReturn(song);
         
         // Act
         Song result = songService.updateSong(song);
         
         // Assert
-        assertNotNull("Updated song should not be null", result);
-        assertEquals("Song ID should match", Long.valueOf(1L), result.getSongId());
-        verify(mockSongDAO, times(1)).update(any(Song.class));
+        assertThat(result).isNotNull();
+        assertThat(result.getSongId()).isEqualTo(1L);
+        verify(mockSongRepository, times(1)).save(any(Song.class));
     }
     
-    @Test(expected = IllegalArgumentException.class)
-    public void testUpdateSong_NullId_ThrowsException() {
+    @Test
+    void testUpdateSong_NullId_ThrowsException() {
         // Arrange
         Song song = createValidSong();
         song.setSongId(null);
         
         // Act & Assert
-        songService.updateSong(song);
+        assertThatThrownBy(() -> songService.updateSong(song))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("Song ID is required for updates");
     }
     
     @Test
-    public void testDeleteSong_ValidId_Success() throws SQLException {
+    void testDeleteSong_ValidId_Success() {
         // Arrange
         Long songId = 1L;
-        when(mockSongDAO.delete(songId)).thenReturn(true);
+        when(mockSongRepository.existsById(songId)).thenReturn(true);
         
         // Act
         boolean result = songService.deleteSong(songId);
         
         // Assert
-        assertTrue("Delete should return true", result);
-        verify(mockSongDAO, times(1)).delete(songId);
+        assertThat(result).isTrue();
+        verify(mockSongRepository, times(1)).existsById(songId);
+        verify(mockSongRepository, times(1)).deleteById(songId);
     }
     
     @Test
-    public void testSearchSongs_ValidQuery_Success() throws SQLException {
+    void testSearchSongs_ValidQuery_Success() {
         // Arrange
         String query = "test";
         List<Song> expectedSongs = new ArrayList<Song>();
         expectedSongs.add(createValidSong());
         
-        when(mockSongDAO.search(query)).thenReturn(expectedSongs);
+        when(mockSongRepository.searchByName(query)).thenReturn(expectedSongs);
         
         // Act
         List<Song> result = songService.searchSongs(query);
         
         // Assert
-        assertNotNull("Search results should not be null", result);
-        assertEquals("Should return 1 song", 1, result.size());
-        verify(mockSongDAO, times(1)).search(query);
+        assertThat(result).isNotNull();
+        assertThat(result).hasSize(1);
+        verify(mockSongRepository, times(1)).searchByName(query);
     }
     
     @Test
-    public void testSearchSongs_EmptyQuery_ReturnsEmptyList() {
+    void testSearchSongs_EmptyQuery_ReturnsEmptyList() {
         // Act
         List<Song> result = songService.searchSongs("");
         
         // Assert
-        assertNotNull("Search results should not be null", result);
-        assertTrue("Search results should be empty", result.isEmpty());
-        try {
-            verify(mockSongDAO, never()).search(anyString());
-        } catch (SQLException e) {
-            fail("Verify should not throw SQLException");
-        }
+        assertThat(result).isNotNull();
+        assertThat(result).isEmpty();
+        verify(mockSongRepository, never()).searchByName(anyString());
     }
     
     @Test
-    public void testGetSongsByArtist_ValidArtist_Success() {
+    void testGetSongsByArtist_ValidArtist_Success() {
         // Arrange
         String artistName = "Test Artist";
         List<Song> expectedSongs = new ArrayList<Song>();
         expectedSongs.add(createValidSong());
         
-        try {
-            when(mockSongDAO.findByArtist(artistName)).thenReturn(expectedSongs);
-        } catch (SQLException e) {
-            fail("Mock setup should not throw SQLException");
-        }
+        when(mockSongRepository.findByArtistArtistNameIgnoreCase(artistName)).thenReturn(expectedSongs);
         
         // Act
         List<Song> result = songService.getSongsByArtist(artistName);
         
         // Assert
-        assertNotNull("Results should not be null", result);
-        assertEquals("Should return 1 song", 1, result.size());
-        try {
-            verify(mockSongDAO, times(1)).findByArtist(artistName);
-        } catch (SQLException e) {
-            fail("Verify should not throw SQLException");
-        }
-    }
-    
-    @Test(expected = IllegalArgumentException.class)
-    public void testGetSongsByArtist_EmptyArtist_ThrowsException() {
-        // Act & Assert
-        songService.getSongsByArtist("");
+        assertThat(result).isNotNull();
+        assertThat(result).hasSize(1);
+        verify(mockSongRepository, times(1)).findByArtistArtistNameIgnoreCase(artistName);
     }
     
     @Test
-    public void testGetSongsByAlbum_ValidAlbum_Success() throws SQLException {
+    void testGetSongsByArtist_EmptyArtist_ThrowsException() {
+        // Act & Assert
+        assertThatThrownBy(() -> songService.getSongsByArtist(""))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("Invalid artist name provided");
+    }
+    
+    @Test
+    void testGetSongsByAlbum_ValidAlbum_Success() {
         // Arrange
         String albumName = "Test Album";
         List<Song> expectedSongs = new ArrayList<Song>();
         expectedSongs.add(createValidSong());
         
-        when(mockSongDAO.findByAlbum(albumName)).thenReturn(expectedSongs);
+        when(mockSongRepository.findByAlbumAlbumNameIgnoreCase(albumName)).thenReturn(expectedSongs);
         
         // Act
         List<Song> result = songService.getSongsByAlbum(albumName);
         
         // Assert
-        assertNotNull("Results should not be null", result);
-        assertEquals("Should return 1 song", 1, result.size());
-        verify(mockSongDAO, times(1)).findByAlbum(albumName);
+        assertThat(result).isNotNull();
+        assertThat(result).hasSize(1);
+        verify(mockSongRepository, times(1)).findByAlbumAlbumNameIgnoreCase(albumName);
+    }
+    
+    @Test
+    void testGetSongsByAlbum_EmptyAlbum_ThrowsException() {
+        // Act & Assert
+        assertThatThrownBy(() -> songService.getSongsByAlbum(""))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("Invalid album name provided");
     }
     
     /**
@@ -282,12 +301,22 @@ public class SongServiceTest {
     private Song createValidSong() {
         Song song = new Song();
         song.setSongName("Test Song");
-        song.setArtistId(1L);
+        
+        Artist artist = new Artist();
+        artist.setArtistId(1L);
+        artist.setArtistName("Test Artist");
+        song.setArtist(artist);
         song.setArtistName("Test Artist");
-        song.setAlbumId(1L);
+        
+        Album album = new Album();
+        album.setAlbumId(1L);
+        album.setAlbumName("Test Album");
+        album.setArtist(artist);
+        song.setAlbum(album);
+        
         song.setTrackNumber(1);
         song.setTrackLength(180); // 3 minutes
-        song.setDateReleased(new Date());
+        song.setDateReleased(LocalDate.now());
         song.setGenre("Rock");
         song.setRating(4); // Integer rating (0-5 stars)
         return song;

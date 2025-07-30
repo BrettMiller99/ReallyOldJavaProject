@@ -1,439 +1,485 @@
 package com.musiclibrary.service;
 
-import com.musiclibrary.dao.AlbumDAO;
 import com.musiclibrary.model.Album;
-import org.junit.Before;
-import org.junit.Test;
+import com.musiclibrary.model.Artist;
+import com.musiclibrary.repository.AlbumRepository;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
-import java.sql.SQLException;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
+import java.util.Optional;
 
-import static org.junit.Assert.*;
+import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 /**
- * Unit tests for AlbumService using traditional Java 7 testing patterns.
+ * Unit tests for AlbumService using modern Java 17 testing patterns.
  * 
  * Testing Approach:
  * - Validates album business logic and artist relationships
  * - Tests release date validation and genre normalization
  * - Verifies error handling for invalid album data
  * - Tests filtering by artist, genre, and year
- * - Demonstrates legacy service testing with manual date handling
+ * - Uses JUnit 5 with modern assertions and Mockito extensions
  * 
- * Migration Opportunities:
- * - Manual date validation -> Java 8 LocalDate with built-in validation
- * - Traditional assertions -> more expressive fluent assertions
- * - Manual test data setup -> test data builders or factories
- * - JUnit 4 -> JUnit 5 with parameterized and dynamic tests
+ * Modern Features:
+ * - JUnit 5 with @ExtendWith for automatic mock injection
+ * - AssertJ fluent assertions for better readability
+ * - Modern exception testing with assertThatThrownBy
+ * - Automatic mock initialization via MockitoExtension
  * 
  * @author Music Library Development Team
- * @version 1.0
- * @since Java 7
+ * @version 2.0
+ * @since Java 17
  */
-public class AlbumServiceTest {
+@ExtendWith(MockitoExtension.class)
+class AlbumServiceTest {
     
     @Mock
-    private AlbumDAO mockAlbumDAO;
+    private AlbumRepository mockAlbumRepository;
     
     private AlbumService albumService;
     
-    @Before
-    public void setUp() {
-        MockitoAnnotations.initMocks(this);
-        albumService = new AlbumService(mockAlbumDAO);
+    @BeforeEach
+    void setUp() {
+        albumService = new AlbumService(mockAlbumRepository);
     }
     
     @Test
-    public void testCreateAlbum_ValidAlbum_Success() throws SQLException {
+    void testCreateAlbum_ValidAlbum_Success() {
         // Arrange
         Album inputAlbum = createValidAlbum();
         Album expectedAlbum = createValidAlbum();
         expectedAlbum.setAlbumId(1L);
         
-        when(mockAlbumDAO.create(any(Album.class))).thenReturn(expectedAlbum);
+        when(mockAlbumRepository.save(any(Album.class))).thenReturn(expectedAlbum);
         
         // Act
         Album result = albumService.createAlbum(inputAlbum);
         
         // Assert
-        assertNotNull("Created album should not be null", result);
-        assertEquals("Album ID should be set", Long.valueOf(1L), result.getAlbumId());
-        assertEquals("Album name should match", "Test Album", result.getAlbumName());
-        verify(mockAlbumDAO, times(1)).create(any(Album.class));
+        assertThat(result).isNotNull();
+        assertThat(result.getAlbumId()).isEqualTo(1L);
+        assertThat(result.getAlbumName()).isEqualTo("Test Album");
+        verify(mockAlbumRepository, times(1)).save(any(Album.class));
     }
     
-    @Test(expected = IllegalArgumentException.class)
-    public void testCreateAlbum_NullAlbum_ThrowsException() {
+    @Test
+    void testCreateAlbum_NullAlbum_ThrowsException() {
         // Act & Assert
-        albumService.createAlbum(null);
+        assertThatThrownBy(() -> albumService.createAlbum(null))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessage("Album cannot be null");
     }
     
-    @Test(expected = IllegalArgumentException.class)
-    public void testCreateAlbum_EmptyAlbumName_ThrowsException() {
+    @Test
+    void testCreateAlbum_EmptyAlbumName_ThrowsException() {
         // Arrange
         Album album = createValidAlbum();
         album.setAlbumName("");
         
         // Act & Assert
-        albumService.createAlbum(album);
+        assertThatThrownBy(() -> albumService.createAlbum(album))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("Album data is incomplete or invalid");
     }
     
-    @Test(expected = IllegalArgumentException.class)
-    public void testCreateAlbum_NullAlbumName_ThrowsException() {
+    @Test
+    void testCreateAlbum_NullAlbumName_ThrowsException() {
         // Arrange
         Album album = createValidAlbum();
         album.setAlbumName(null);
         
         // Act & Assert
-        albumService.createAlbum(album);
-    }
-    
-    @Test(expected = IllegalArgumentException.class)
-    public void testCreateAlbum_NullArtistId_ThrowsException() {
-        // Arrange
-        Album album = createValidAlbum();
-        album.setArtistId(null);
-        
-        // Act & Assert
-        albumService.createAlbum(album);
-    }
-    
-    @Test(expected = IllegalArgumentException.class)
-    public void testCreateAlbum_InvalidArtistId_ThrowsException() {
-        // Arrange
-        Album album = createValidAlbum();
-        album.setArtistId(0L);
-        
-        // Act & Assert
-        albumService.createAlbum(album);
-    }
-    
-    @Test(expected = RuntimeException.class)
-    public void testCreateAlbum_DatabaseError_ThrowsRuntimeException() throws SQLException {
-        // Arrange
-        Album album = createValidAlbum();
-        when(mockAlbumDAO.create(any(Album.class))).thenThrow(new SQLException("DB error"));
-        
-        // Act & Assert
-        albumService.createAlbum(album);
+        assertThatThrownBy(() -> albumService.createAlbum(album))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("Album data is incomplete or invalid");
     }
     
     @Test
-    public void testGetAlbumById_ValidId_Success() throws SQLException {
+    void testCreateAlbum_NullArtistId_ThrowsException() {
+        // Arrange
+        Album album = createValidAlbum();
+        album.setArtist(null);
+        
+        // Act & Assert
+        assertThatThrownBy(() -> albumService.createAlbum(album))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("Album data is incomplete or invalid");
+    }
+    
+    @Test
+    void testCreateAlbum_InvalidArtistId_ThrowsException() {
+        // Arrange
+        Album album = createValidAlbum();
+        Artist invalidArtist = new Artist();
+        invalidArtist.setArtistId(0L);
+        album.setArtist(invalidArtist);
+        
+        // Act & Assert
+        assertThatThrownBy(() -> albumService.createAlbum(album))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("Valid Artist ID is required");
+    }
+    
+    @Test
+    void testCreateAlbum_DatabaseError_ThrowsRuntimeException() {
+        // Arrange
+        Album album = createValidAlbum();
+        when(mockAlbumRepository.save(any(Album.class))).thenThrow(new RuntimeException("DB error"));
+        
+        // Act & Assert
+        assertThatThrownBy(() -> albumService.createAlbum(album))
+            .isInstanceOf(RuntimeException.class)
+            .hasMessageContaining("Failed to create album");
+    }
+    
+    @Test
+    void testGetAlbumById_ValidId_Success() {
         // Arrange
         Long albumId = 1L;
         Album expectedAlbum = createValidAlbum();
         expectedAlbum.setAlbumId(albumId);
         
-        when(mockAlbumDAO.findById(albumId)).thenReturn(expectedAlbum);
+        when(mockAlbumRepository.findById(albumId)).thenReturn(Optional.of(expectedAlbum));
         
         // Act
         Album result = albumService.getAlbumById(albumId);
         
         // Assert
-        assertNotNull("Retrieved album should not be null", result);
-        assertEquals("Album ID should match", albumId, result.getAlbumId());
-        verify(mockAlbumDAO, times(1)).findById(albumId);
-    }
-    
-    @Test(expected = IllegalArgumentException.class)
-    public void testGetAlbumById_NullId_ThrowsException() {
-        // Act & Assert
-        albumService.getAlbumById(null);
-    }
-    
-    @Test(expected = IllegalArgumentException.class)
-    public void testGetAlbumById_InvalidId_ThrowsException() {
-        // Act & Assert
-        albumService.getAlbumById(0L);
+        assertThat(result).isNotNull();
+        assertThat(result.getAlbumId()).isEqualTo(albumId);
+        verify(mockAlbumRepository, times(1)).findById(albumId);
     }
     
     @Test
-    public void testGetAllAlbums_Success() throws SQLException {
+    void testGetAlbumById_NullId_ThrowsException() {
+        // Act & Assert
+        assertThatThrownBy(() -> albumService.getAlbumById(null))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("Invalid album ID provided");
+    }
+    
+    @Test
+    void testGetAlbumById_InvalidId_ThrowsException() {
+        // Act & Assert
+        assertThatThrownBy(() -> albumService.getAlbumById(0L))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("Invalid album ID provided");
+    }
+    
+    @Test
+    void testGetAllAlbums_Success() {
         // Arrange
         List<Album> expectedAlbums = new ArrayList<Album>();
         expectedAlbums.add(createValidAlbum());
         expectedAlbums.add(createValidAlbum());
         
-        when(mockAlbumDAO.findAll()).thenReturn(expectedAlbums);
+        when(mockAlbumRepository.findAll()).thenReturn(expectedAlbums);
         
         // Act
         List<Album> result = albumService.getAllAlbums();
         
         // Assert
-        assertNotNull("Albums list should not be null", result);
-        assertEquals("Should return 2 albums", 2, result.size());
-        verify(mockAlbumDAO, times(1)).findAll();
+        assertThat(result).isNotNull();
+        assertThat(result).hasSize(2);
+        verify(mockAlbumRepository, times(1)).findAll();
     }
     
     @Test
-    public void testUpdateAlbum_ValidAlbum_Success() throws SQLException {
+    void testUpdateAlbum_ValidAlbum_Success() {
         // Arrange
         Album album = createValidAlbum();
         album.setAlbumId(1L);
         
-        when(mockAlbumDAO.update(any(Album.class))).thenReturn(album);
+        when(mockAlbumRepository.save(any(Album.class))).thenReturn(album);
         
         // Act
         Album result = albumService.updateAlbum(album);
         
         // Assert
-        assertNotNull("Updated album should not be null", result);
-        assertEquals("Album ID should match", Long.valueOf(1L), result.getAlbumId());
-        verify(mockAlbumDAO, times(1)).update(any(Album.class));
+        assertThat(result).isNotNull();
+        assertThat(result.getAlbumId()).isEqualTo(1L);
+        verify(mockAlbumRepository, times(1)).save(any(Album.class));
     }
     
-    @Test(expected = IllegalArgumentException.class)
-    public void testUpdateAlbum_NullId_ThrowsException() {
+    @Test
+    void testUpdateAlbum_NullId_ThrowsException() {
         // Arrange
         Album album = createValidAlbum();
         album.setAlbumId(null);
         
         // Act & Assert
-        albumService.updateAlbum(album);
+        assertThatThrownBy(() -> albumService.updateAlbum(album))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("Album ID is required for updates");
     }
     
     @Test
-    public void testDeleteAlbum_ValidId_Success() throws SQLException {
+    void testDeleteAlbum_ValidId_Success() {
         // Arrange
         Long albumId = 1L;
-        when(mockAlbumDAO.delete(albumId)).thenReturn(true);
+        when(mockAlbumRepository.existsById(albumId)).thenReturn(true);
         
         // Act
         boolean result = albumService.deleteAlbum(albumId);
         
         // Assert
-        assertTrue("Delete should return true", result);
-        verify(mockAlbumDAO, times(1)).delete(albumId);
+        assertThat(result).isTrue();
+        verify(mockAlbumRepository, times(1)).existsById(albumId);
+        verify(mockAlbumRepository, times(1)).deleteById(albumId);
     }
     
     @Test
-    public void testSearchAlbums_ValidQuery_Success() throws SQLException {
+    void testSearchAlbums_ValidQuery_Success() {
         // Arrange
         String query = "test";
         List<Album> expectedAlbums = new ArrayList<Album>();
         expectedAlbums.add(createValidAlbum());
         
-        when(mockAlbumDAO.search(query)).thenReturn(expectedAlbums);
+        when(mockAlbumRepository.searchByName(query)).thenReturn(expectedAlbums);
         
         // Act
         List<Album> result = albumService.searchAlbums(query);
         
         // Assert
-        assertNotNull("Search results should not be null", result);
-        assertEquals("Should return 1 album", 1, result.size());
-        verify(mockAlbumDAO, times(1)).search(query);
+        assertThat(result).isNotNull();
+        assertThat(result).hasSize(1);
+        verify(mockAlbumRepository, times(1)).searchByName(query);
     }
     
     @Test
-    public void testSearchAlbums_EmptyQuery_ReturnsEmptyList() {
+    void testSearchAlbums_EmptyQuery_ReturnsEmptyList() {
         // Act
         List<Album> result = albumService.searchAlbums("");
         
         // Assert
-        assertNotNull("Search results should not be null", result);
-        assertTrue("Search results should be empty", result.isEmpty());
-        try {
-            verify(mockAlbumDAO, never()).search(anyString());
-        } catch (SQLException e) {
-            fail("Verify should not throw SQLException");
-        }
+        assertThat(result).isNotNull();
+        assertThat(result).isEmpty();
+        verify(mockAlbumRepository, never()).searchByName(anyString());
     }
     
     @Test
-    public void testGetAlbumsByArtist_ValidArtistId_Success() throws SQLException {
+    void testGetAlbumsByArtist_ValidArtistId_Success() {
         // Arrange
         Long artistId = 1L;
         List<Album> expectedAlbums = new ArrayList<Album>();
         expectedAlbums.add(createValidAlbum());
         
-        when(mockAlbumDAO.findByArtist(artistId)).thenReturn(expectedAlbums);
+        when(mockAlbumRepository.findByArtistArtistId(artistId)).thenReturn(expectedAlbums);
         
         // Act
         List<Album> result = albumService.getAlbumsByArtist(artistId);
         
         // Assert
-        assertNotNull("Results should not be null", result);
-        assertEquals("Should return 1 album", 1, result.size());
-        verify(mockAlbumDAO, times(1)).findByArtist(artistId);
-    }
-    
-    @Test(expected = IllegalArgumentException.class)
-    public void testGetAlbumsByArtist_NullArtistId_ThrowsException() {
-        // Act & Assert
-        albumService.getAlbumsByArtist((Long) null);
-    }
-    
-    @Test(expected = IllegalArgumentException.class)
-    public void testGetAlbumsByArtist_InvalidArtistId_ThrowsException() {
-        // Act & Assert
-        albumService.getAlbumsByArtist(0L);
+        assertThat(result).isNotNull();
+        assertThat(result).hasSize(1);
+        verify(mockAlbumRepository, times(1)).findByArtistArtistId(artistId);
     }
     
     @Test
-    public void testGetAlbumsByArtistName_ValidArtistName_Success() throws SQLException {
+    void testGetAlbumsByArtist_NullArtistId_ThrowsException() {
+        // Act & Assert
+        assertThatThrownBy(() -> albumService.getAlbumsByArtist((Long) null))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("Invalid artist ID provided");
+    }
+    
+    @Test
+    void testGetAlbumsByArtist_InvalidArtistId_ThrowsException() {
+        // Act & Assert
+        assertThatThrownBy(() -> albumService.getAlbumsByArtist(0L))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("Invalid artist ID provided");
+    }
+    
+    @Test
+    void testGetAlbumsByArtistName_ValidArtistName_Success() {
         // Arrange
         String artistName = "Test Artist";
         List<Album> expectedAlbums = new ArrayList<Album>();
         expectedAlbums.add(createValidAlbum());
         
-        when(mockAlbumDAO.findByArtist(artistName)).thenReturn(expectedAlbums);
+        when(mockAlbumRepository.findByArtistArtistNameIgnoreCase(artistName)).thenReturn(expectedAlbums);
         
         // Act
         List<Album> result = albumService.getAlbumsByArtistName(artistName);
         
         // Assert
-        assertNotNull("Results should not be null", result);
-        assertEquals("Should return 1 album", 1, result.size());
-        verify(mockAlbumDAO, times(1)).findByArtist(artistName);
-    }
-    
-    @Test(expected = IllegalArgumentException.class)
-    public void testGetAlbumsByArtistName_EmptyArtistName_ThrowsException() {
-        // Act & Assert
-        albumService.getAlbumsByArtistName("");
-    }
-    
-    @Test(expected = IllegalArgumentException.class)
-    public void testGetAlbumsByArtistName_NullArtistName_ThrowsException() {
-        // Act & Assert
-        albumService.getAlbumsByArtistName(null);
+        assertThat(result).isNotNull();
+        assertThat(result).hasSize(1);
+        verify(mockAlbumRepository, times(1)).findByArtistArtistNameIgnoreCase(artistName);
     }
     
     @Test
-    public void testGetAlbumsByGenre_ValidGenre_Success() throws SQLException {
+    void testGetAlbumsByArtistName_EmptyArtistName_ThrowsException() {
+        // Act & Assert
+        assertThatThrownBy(() -> albumService.getAlbumsByArtistName(""))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("Invalid artist name provided");
+    }
+    
+    @Test
+    void testGetAlbumsByArtistName_NullArtistName_ThrowsException() {
+        // Act & Assert
+        assertThatThrownBy(() -> albumService.getAlbumsByArtistName(null))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("Invalid artist name provided");
+    }
+    
+    @Test
+    void testGetAlbumsByGenre_ValidGenre_Success() {
         // Arrange
         String genre = "Rock";
         List<Album> expectedAlbums = new ArrayList<Album>();
         expectedAlbums.add(createValidAlbum());
         
-        when(mockAlbumDAO.findByGenre(genre)).thenReturn(expectedAlbums);
+        when(mockAlbumRepository.findByGenreIgnoreCase(genre)).thenReturn(expectedAlbums);
         
         // Act
         List<Album> result = albumService.getAlbumsByGenre(genre);
         
         // Assert
-        assertNotNull("Results should not be null", result);
-        assertEquals("Should return 1 album", 1, result.size());
-        verify(mockAlbumDAO, times(1)).findByGenre(genre);
-    }
-    
-    @Test(expected = IllegalArgumentException.class)
-    public void testGetAlbumsByGenre_EmptyGenre_ThrowsException() {
-        // Act & Assert
-        albumService.getAlbumsByGenre("");
-    }
-    
-    @Test(expected = IllegalArgumentException.class)
-    public void testGetAlbumsByGenre_NullGenre_ThrowsException() {
-        // Act & Assert
-        albumService.getAlbumsByGenre(null);
+        assertThat(result).isNotNull();
+        assertThat(result).hasSize(1);
+        verify(mockAlbumRepository, times(1)).findByGenreIgnoreCase(genre);
     }
     
     @Test
-    public void testGetAlbumsByYear_ValidYear_Success() throws SQLException {
+    void testGetAlbumsByGenre_EmptyGenre_ThrowsException() {
+        // Act & Assert
+        assertThatThrownBy(() -> albumService.getAlbumsByGenre(""))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("Invalid genre name provided");
+    }
+    
+    @Test
+    void testGetAlbumsByGenre_NullGenre_ThrowsException() {
+        // Act & Assert
+        assertThatThrownBy(() -> albumService.getAlbumsByGenre(null))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("Invalid genre name provided");
+    }
+    
+    @Test
+    void testGetAlbumsByYear_ValidYear_Success() {
         // Arrange
         int year = 2020;
         List<Album> expectedAlbums = new ArrayList<Album>();
         expectedAlbums.add(createValidAlbum());
         
-        when(mockAlbumDAO.findByYear(year)).thenReturn(expectedAlbums);
+        when(mockAlbumRepository.findByReleaseYear(year)).thenReturn(expectedAlbums);
         
         // Act
         List<Album> result = albumService.getAlbumsByYear(year);
         
         // Assert
-        assertNotNull("Results should not be null", result);
-        assertEquals("Should return 1 album", 1, result.size());
-        verify(mockAlbumDAO, times(1)).findByYear(year);
-    }
-    
-    @Test(expected = IllegalArgumentException.class)
-    public void testGetAlbumsByYear_TooOldYear_ThrowsException() {
-        // Act & Assert
-        albumService.getAlbumsByYear(1800);
-    }
-    
-    @Test(expected = IllegalArgumentException.class)
-    public void testGetAlbumsByYear_FutureYear_ThrowsException() {
-        // Act & Assert
-        albumService.getAlbumsByYear(2050);
+        assertThat(result).isNotNull();
+        assertThat(result).hasSize(1);
+        verify(mockAlbumRepository, times(1)).findByReleaseYear(year);
     }
     
     @Test
-    public void testGetAlbumsWithPagination_ValidParameters_Success() throws SQLException {
+    void testGetAlbumsByYear_TooOldYear_ThrowsException() {
+        // Act & Assert
+        assertThatThrownBy(() -> albumService.getAlbumsByYear(1800))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("Invalid release year: 1800");
+    }
+    
+    @Test
+    void testGetAlbumsByYear_FutureYear_ThrowsException() {
+        // Act & Assert
+        assertThatThrownBy(() -> albumService.getAlbumsByYear(2050))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("Invalid release year: 2050");
+    }
+    
+    @Test
+    void testGetAlbumsWithPagination_ValidParameters_Success() {
         // Arrange
         int page = 0;
         int size = 10;
         List<Album> expectedAlbums = new ArrayList<Album>();
         expectedAlbums.add(createValidAlbum());
+        Page<Album> albumPage = new PageImpl<>(expectedAlbums);
+        Pageable pageable = PageRequest.of(page, size);
         
-        when(mockAlbumDAO.findWithPagination(0, 10)).thenReturn(expectedAlbums);
+        when(mockAlbumRepository.findAll(pageable)).thenReturn(albumPage);
         
         // Act
         List<Album> result = albumService.getAlbumsWithPagination(page, size);
         
         // Assert
-        assertNotNull("Paginated results should not be null", result);
-        assertEquals("Should return 1 album", 1, result.size());
-        verify(mockAlbumDAO, times(1)).findWithPagination(0, 10);
-    }
-    
-    @Test(expected = IllegalArgumentException.class)
-    public void testGetAlbumsWithPagination_NegativePage_ThrowsException() {
-        // Act & Assert
-        albumService.getAlbumsWithPagination(-1, 10);
-    }
-    
-    @Test(expected = IllegalArgumentException.class)
-    public void testGetAlbumsWithPagination_InvalidSize_ThrowsException() {
-        // Act & Assert
-        albumService.getAlbumsWithPagination(0, 0);
+        assertThat(result).isNotNull();
+        assertThat(result).hasSize(1);
+        verify(mockAlbumRepository, times(1)).findAll(any(Pageable.class));
     }
     
     @Test
-    public void testGetTotalAlbumCount_Success() throws SQLException {
+    void testGetAlbumsWithPagination_NegativePage_ThrowsException() {
+        // Act & Assert
+        assertThatThrownBy(() -> albumService.getAlbumsWithPagination(-1, 10))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("Page number must be non-negative");
+    }
+    
+    @Test
+    void testGetAlbumsWithPagination_InvalidSize_ThrowsException() {
+        // Act & Assert
+        assertThatThrownBy(() -> albumService.getAlbumsWithPagination(0, 0))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("size");
+    }
+    
+    @Test
+    void testGetTotalAlbumCount_Success() {
         // Arrange
-        when(mockAlbumDAO.count()).thenReturn(3L);
+        when(mockAlbumRepository.count()).thenReturn(3L);
         
         // Act
         long result = albumService.getTotalAlbumCount();
         
         // Assert
-        assertEquals("Count should match", 3L, result);
-        verify(mockAlbumDAO, times(1)).count();
+        assertThat(result).isEqualTo(3L);
+        verify(mockAlbumRepository, times(1)).count();
     }
     
     @Test
-    public void testAlbumExists_ExistingAlbum_ReturnsTrue() throws SQLException {
+    void testAlbumExists_ExistingAlbum_ReturnsTrue() {
         // Arrange
         Long albumId = 1L;
-        when(mockAlbumDAO.exists(albumId)).thenReturn(true);
+        when(mockAlbumRepository.existsById(albumId)).thenReturn(true);
         
         // Act
         boolean result = albumService.albumExists(albumId);
         
         // Assert
-        assertTrue("Album should exist", result);
-        verify(mockAlbumDAO, times(1)).exists(albumId);
+        assertThat(result).isTrue();
+        verify(mockAlbumRepository, times(1)).existsById(albumId);
     }
     
     @Test
-    public void testAlbumExists_NonExistingAlbum_ReturnsFalse() throws SQLException {
+    void testAlbumExists_NonExistingAlbum_ReturnsFalse() {
         // Arrange
         Long albumId = 999L;
-        when(mockAlbumDAO.exists(albumId)).thenReturn(false);
+        when(mockAlbumRepository.existsById(albumId)).thenReturn(false);
         
         // Act
         boolean result = albumService.albumExists(albumId);
         
         // Assert
-        assertFalse("Album should not exist", result);
-        verify(mockAlbumDAO, times(1)).exists(albumId);
+        assertThat(result).isFalse();
+        verify(mockAlbumRepository, times(1)).existsById(albumId);
     }
     
     /**
@@ -443,12 +489,18 @@ public class AlbumServiceTest {
     private Album createValidAlbum() {
         Album album = new Album();
         album.setAlbumName("Test Album");
-        album.setArtistId(1L);
-        album.setReleaseDate(new Date());
+        
+        Artist artist = new Artist();
+        artist.setArtistId(1L);
+        artist.setArtistName("Test Artist");
+        album.setArtist(artist);
+        album.setArtistName("Test Artist");
+        
+        album.setReleaseDate(LocalDate.now());
         album.setGenre("Rock");
         album.setRecordLabel("Test Records");
         album.setTotalTracks(10);
-        album.setCreatedDate(new Date());
+        album.setCreatedDate(LocalDateTime.now());
         return album;
     }
 }

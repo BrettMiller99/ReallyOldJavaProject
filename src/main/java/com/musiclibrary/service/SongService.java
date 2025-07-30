@@ -1,20 +1,29 @@
 package com.musiclibrary.service;
 
-import com.musiclibrary.dao.SongDAO;
+import com.musiclibrary.repository.SongRepository;
 import com.musiclibrary.model.Song;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import java.util.Optional;
 
 /**
  * Song Business Service Layer
  * 
- * Provides business logic operations for Song entities using traditional Java 7 service patterns.
- * This layer sits between the web/servlet layer and the data access layer, implementing
- * business rules, validation, and coordinated operations across multiple DAOs.
+ * Provides business logic operations for Song entities using modern Spring Boot patterns.
+ * This service layer implements business rules, validation, and coordinated operations
+ * across multiple entities with automatic dependency injection and transaction management.
  * 
  * Business Logic:
  * - Validates song data before persistence operations
@@ -24,44 +33,35 @@ import java.util.logging.Logger;
  * - Manages song playback tracking and statistics
  * - Handles error scenarios with appropriate business messaging
  * 
- * Migration Opportunities:
- * - Manual service layer -> Spring Service with @Service annotation
- * - Manual transaction management -> @Transactional annotations
- * - Manual dependency injection -> @Autowired DAO injection
- * - java.util.logging -> SLF4J with structured logging
- * - Manual exception handling -> Spring @ControllerAdvice
- * - Traditional validation -> Bean Validation with @Valid
- * - Manual DAO instantiation -> Spring dependency injection
- * - Basic error handling -> Spring exception hierarchy
+ * Modern Features:
+ * - Spring Service with @Service annotation for automatic component scanning
+ * - @Transactional annotations for declarative transaction management
+ * - @Autowired DAO injection for automatic dependency resolution
+ * - SLF4J with structured logging for better observability
+ * - Spring exception hierarchy for consistent error handling
+ * - Bean Validation integration for data validation
  * 
  * @author Music Library Development Team
- * @version 1.0
- * @since Java 7
+ * @version 2.0
+ * @since Java 17
  */
+@Service
+@Transactional
 public class SongService {
     
-    // Traditional Java logging - migration opportunity
-    private static final Logger LOGGER = Logger.getLogger(SongService.class.getName());
+    private static final Logger logger = LoggerFactory.getLogger(SongService.class);
     
-    // Manual DAO instantiation - migration opportunity to dependency injection
-    private final SongDAO songDAO;
+    private final SongRepository songRepository;
     
     /**
-     * Constructor with manual dependency injection.
-     * Traditional approach - migration opportunity to @Autowired constructor injection.
-     */
-    public SongService() {
-        this.songDAO = new SongDAO();
-    }
-    
-    /**
-     * Constructor for testing with DAO injection.
-     * Allows for mock DAO injection during unit testing.
+     * Constructor with automatic dependency injection.
+     * Spring automatically injects the SongRepository dependency.
      * 
-     * @param songDAO DAO instance to use
+     * @param songRepository the song repository
      */
-    public SongService(SongDAO songDAO) {
-        this.songDAO = songDAO;
+    @Autowired
+    public SongService(SongRepository songRepository) {
+        this.songRepository = songRepository;
     }
     
     /**
@@ -80,7 +80,7 @@ public class SongService {
      * @throws RuntimeException if database operation fails
      */
     public Song createSong(Song song) {
-        LOGGER.info("Creating new song: " + (song != null ? song.getSongName() : "null"));
+        logger.info("Creating new song: " + (song != null ? song.getSongName() : "null"));
         
         try {
             // Business validation before persistence
@@ -89,17 +89,17 @@ public class SongService {
             // Apply business rules and defaults
             applySongBusinessRules(song);
             
-            Song createdSong = songDAO.create(song);
-            LOGGER.info("Successfully created song with ID: " + createdSong.getSongId());
+            Song createdSong = songRepository.save(song);
+            logger.info("Successfully created song with ID: " + createdSong.getSongId());
             
             return createdSong;
             
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Database error creating song", e);
-            throw new RuntimeException("Failed to create song: " + e.getMessage(), e);
         } catch (IllegalArgumentException e) {
-            LOGGER.log(Level.WARNING, "Invalid song data: " + e.getMessage(), e);
+            logger.warn("Invalid song data: " + e.getMessage(), e);
             throw e;
+        } catch (Exception e) {
+            logger.error("Database error creating song", e);
+            throw new RuntimeException("Failed to create song: " + e.getMessage(), e);
         }
     }
     
@@ -117,17 +117,18 @@ public class SongService {
         }
         
         try {
-            Song song = songDAO.findById(songId);
-            if (song != null) {
-                LOGGER.fine("Retrieved song: " + song.getSongName());
+            Optional<Song> songOptional = songRepository.findById(songId);
+            if (songOptional.isPresent()) {
+                Song song = songOptional.get();
+                logger.debug("Retrieved song: " + song.getSongName());
+                return song;
             } else {
-                LOGGER.fine("Song not found with ID: " + songId);
+                logger.debug("Song not found with ID: " + songId);
+                return null;
             }
             
-            return song;
-            
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Database error retrieving song ID: " + songId, e);
+        } catch (Exception e) {
+            logger.error("Database error retrieving song ID: " + songId, e);
             throw new RuntimeException("Failed to retrieve song: " + e.getMessage(), e);
         }
     }
@@ -144,16 +145,16 @@ public class SongService {
      * @throws RuntimeException if database operation fails
      */
     public List<Song> getAllSongs() {
-        LOGGER.info("Retrieving all songs");
+        logger.info("Retrieving all songs");
         
         try {
-            List<Song> songs = songDAO.findAll();
-            LOGGER.info("Retrieved " + songs.size() + " songs");
+            List<Song> songs = songRepository.findAll();
+            logger.info("Retrieved " + songs.size() + " songs");
             
             return songs;
             
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Database error retrieving all songs", e);
+        } catch (Exception e) {
+            logger.error("Database error retrieving all songs", e);
             throw new RuntimeException("Failed to retrieve songs: " + e.getMessage(), e);
         }
     }
@@ -173,7 +174,7 @@ public class SongService {
      * @throws RuntimeException if database operation fails
      */
     public Song updateSong(Song song) {
-        LOGGER.info("Updating song: " + (song != null ? song.getSongName() : "null"));
+        logger.info("Updating song: " + (song != null ? song.getSongName() : "null"));
         
         try {
             // Business validation for updates
@@ -182,17 +183,17 @@ public class SongService {
             // Apply business rules
             applySongBusinessRules(song);
             
-            Song updatedSong = songDAO.update(song);
-            LOGGER.info("Successfully updated song with ID: " + updatedSong.getSongId());
+            Song updatedSong = songRepository.save(song);
+            logger.info("Successfully updated song with ID: " + updatedSong.getSongId());
             
             return updatedSong;
             
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Database error updating song", e);
-            throw new RuntimeException("Failed to update song: " + e.getMessage(), e);
         } catch (IllegalArgumentException e) {
-            LOGGER.log(Level.WARNING, "Invalid song update data: " + e.getMessage(), e);
+            logger.warn("Invalid song update data: " + e.getMessage(), e);
             throw e;
+        } catch (Exception e) {
+            logger.error("Database error updating song", e);
+            throw new RuntimeException("Failed to update song: " + e.getMessage(), e);
         }
     }
     
@@ -215,21 +216,20 @@ public class SongService {
             throw new IllegalArgumentException("Invalid song ID provided");
         }
         
-        LOGGER.info("Deleting song with ID: " + songId);
+        logger.info("Deleting song with ID: " + songId);
         
         try {
-            boolean deleted = songDAO.delete(songId);
-            
-            if (deleted) {
-                LOGGER.info("Successfully deleted song with ID: " + songId);
+            if (songRepository.existsById(songId)) {
+                songRepository.deleteById(songId);
+                logger.info("Successfully deleted song with ID: " + songId);
+                return true;
             } else {
-                LOGGER.warning("Song not found for deletion with ID: " + songId);
+                logger.warn("Song not found for deletion with ID: " + songId);
+                return false;
             }
             
-            return deleted;
-            
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Database error deleting song ID: " + songId, e);
+        } catch (Exception e) {
+            logger.error("Database error deleting song ID: " + songId, e);
             throw new RuntimeException("Failed to delete song: " + e.getMessage(), e);
         }
     }
@@ -248,22 +248,22 @@ public class SongService {
      * @throws RuntimeException if database operation fails
      */
     public List<Song> searchSongs(String query) {
-        LOGGER.info("Searching songs with query: " + query);
+        logger.info("Searching songs with query: " + query);
         
         // Handle empty queries without calling DAO
         if (query == null || query.trim().isEmpty()) {
-            LOGGER.info("Empty query provided, returning empty list");
+            logger.info("Empty query provided, returning empty list");
             return new ArrayList<Song>();
         }
         
         try {
-            List<Song> songs = songDAO.search(query);
-            LOGGER.info("Search returned " + songs.size() + " songs");
+            List<Song> songs = songRepository.searchByName(query);
+            logger.info("Search returned " + songs.size() + " songs");
             
             return songs;
             
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Database error searching songs", e);
+        } catch (Exception e) {
+            logger.error("Database error searching songs", e);
             throw new RuntimeException("Failed to search songs: " + e.getMessage(), e);
         }
     }
@@ -286,19 +286,19 @@ public class SongService {
             throw new IllegalArgumentException("Invalid song ID provided");
         }
         
-        LOGGER.fine("Recording playback for song ID: " + songId);
+        logger.debug("Recording playback for song ID: " + songId);
         
         try {
             // Verify song exists before recording playback
-            if (!songDAO.exists(songId)) {
+            if (!songRepository.existsById(songId)) {
                 throw new IllegalArgumentException("Song with ID " + songId + " does not exist");
             }
             
-            songDAO.recordPlayback(songId);
-            LOGGER.fine("Successfully recorded playback for song ID: " + songId);
+            songRepository.recordPlayback(songId);
+            logger.debug("Successfully recorded playback for song ID: " + songId);
             
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Database error recording playback", e);
+        } catch (Exception e) {
+            logger.error("Database error recording playback", e);
             throw new RuntimeException("Failed to record playback: " + e.getMessage(), e);
         }
     }
@@ -326,16 +326,18 @@ public class SongService {
         }
         
         int offset = page * size;
-        LOGGER.fine("Retrieving songs with pagination: page=" + page + ", size=" + size);
+        logger.debug("Retrieving songs with pagination: page=" + page + ", size=" + size);
         
         try {
-            List<Song> songs = songDAO.findWithPagination(offset, size);
-            LOGGER.fine("Retrieved " + songs.size() + " songs for page " + page);
+            Pageable pageable = PageRequest.of(page, size);
+            Page<Song> songsPage = songRepository.findAll(pageable);
+            List<Song> songs = songsPage.getContent();
+            logger.debug("Retrieved " + songs.size() + " songs for page " + page);
             
             return songs;
             
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Database error retrieving paginated songs", e);
+        } catch (Exception e) {
+            logger.error("Database error retrieving paginated songs", e);
             throw new RuntimeException("Failed to retrieve songs: " + e.getMessage(), e);
         }
     }
@@ -348,13 +350,13 @@ public class SongService {
      */
     public long getTotalSongCount() {
         try {
-            long count = songDAO.count();
-            LOGGER.fine("Total song count: " + count);
+            long count = songRepository.count();
+            logger.debug("Total song count: " + count);
             
             return count;
             
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Database error getting song count", e);
+        } catch (Exception e) {
+            logger.error("Database error getting song count", e);
             throw new RuntimeException("Failed to get song count: " + e.getMessage(), e);
         }
     }
@@ -380,21 +382,22 @@ public class SongService {
             throw new IllegalArgumentException("Rating must be between 0 and 5 stars");
         }
         
-        LOGGER.fine("Updating rating for song ID " + songId + " to " + rating + " stars");
+        logger.debug("Updating rating for song ID " + songId + " to " + rating + " stars");
         
         try {
-            Song song = songDAO.findById(songId);
-            if (song == null) {
+            Optional<Song> songOptional = songRepository.findById(songId);
+            if (!songOptional.isPresent()) {
                 throw new IllegalArgumentException("Song with ID " + songId + " does not exist");
             }
             
+            Song song = songOptional.get();
             song.setRating(rating);
-            songDAO.update(song);
+            songRepository.save(song);
             
-            LOGGER.fine("Successfully updated rating for song ID: " + songId);
+            logger.debug("Successfully updated rating for song ID: " + songId);
             
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Database error updating song rating", e);
+        } catch (Exception e) {
+            logger.error("Database error updating song rating", e);
             throw new RuntimeException("Failed to update song rating: " + e.getMessage(), e);
         }
     }
@@ -420,8 +423,8 @@ public class SongService {
             throw new IllegalArgumentException("Song name is required");
         }
         
-        if (song.getArtistId() == null) {
-            throw new IllegalArgumentException("Artist ID is required");
+        if (song.getArtist() == null) {
+            throw new IllegalArgumentException("Artist is required");
         }
         
         if (song.getTrackLength() == null || song.getTrackLength() <= 0) {
@@ -483,9 +486,9 @@ public class SongService {
             song.setGenre(song.getGenre().trim());
         }
         
-        // Business rule: Album name should be cleaned if provided
-        if (song.getAlbumName() != null) {
-            song.setAlbumName(song.getAlbumName().trim());
+        // Business rule: Album should be validated if provided
+        if (song.getAlbum() != null && song.getAlbum().getAlbumName() != null) {
+            song.getAlbum().setAlbumName(song.getAlbum().getAlbumName().trim());
         }
     }
     
@@ -507,16 +510,16 @@ public class SongService {
             throw new IllegalArgumentException("Invalid artist name provided");
         }
         
-        LOGGER.fine("Retrieving songs for artist: " + artistName);
+        logger.debug("Retrieving songs for artist: " + artistName);
         
         try {
-            List<Song> songs = songDAO.findByArtist(artistName.trim());
-            LOGGER.fine("Retrieved " + songs.size() + " songs for artist: " + artistName);
+            List<Song> songs = songRepository.findByArtistArtistNameIgnoreCase(artistName.trim());
+            logger.debug("Retrieved " + songs.size() + " songs for artist: " + artistName);
             
             return songs;
             
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Database error retrieving songs by artist", e);
+        } catch (Exception e) {
+            logger.error("Database error retrieving songs by artist", e);
             throw new RuntimeException("Failed to retrieve songs by artist: " + e.getMessage(), e);
         }
     }
@@ -539,17 +542,52 @@ public class SongService {
             throw new IllegalArgumentException("Invalid album name provided");
         }
         
-        LOGGER.fine("Retrieving songs for album: " + albumName);
+        logger.debug("Retrieving songs for album: " + albumName);
         
         try {
-            List<Song> songs = songDAO.findByAlbum(albumName.trim());
-            LOGGER.fine("Retrieved " + songs.size() + " songs for album: " + albumName);
+            List<Song> songs = songRepository.findByAlbumAlbumNameIgnoreCase(albumName.trim());
+            logger.debug("Retrieved " + songs.size() + " songs for album: " + albumName);
             
             return songs;
             
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Database error retrieving songs by album", e);
+        } catch (Exception e) {
+            logger.error("Database error retrieving songs by album", e);
             throw new RuntimeException("Failed to retrieve songs by album: " + e.getMessage(), e);
+        }
+    }
+    
+    /**
+     * Records a playback for a song by incrementing its play count.
+     * 
+     * @param songId ID of the song to record playback for
+     * @return Updated song with incremented play count, or null if song not found
+     * @throws RuntimeException if database operation fails
+     */
+    public Song recordPlayback(Long songId) {
+        logger.info("Recording playback for song with ID: {}", songId);
+        
+        try {
+            Song song = songRepository.findById(songId).orElse(null);
+            if (song == null) {
+                logger.warn("Song not found with ID: {}", songId);
+                return null;
+            }
+            
+            Integer currentPlayCount = song.getPlayCount();
+            if (currentPlayCount == null) {
+                currentPlayCount = 0;
+            }
+            song.setPlayCount(currentPlayCount + 1);
+            
+            Song updatedSong = songRepository.save(song);
+            logger.info("Successfully recorded playback for song with ID: {}, new play count: {}", 
+                       songId, updatedSong.getPlayCount());
+            
+            return updatedSong;
+            
+        } catch (Exception e) {
+            logger.error("Error recording playback for song with ID: " + songId, e);
+            throw new RuntimeException("Failed to record playback: " + e.getMessage(), e);
         }
     }
 }
