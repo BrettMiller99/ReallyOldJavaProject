@@ -287,6 +287,6 @@
         <mime-type>text/css</mime-type>
     </mime-mapping>
 
-    <!-- Resource References - Removed legacy JNDI datasource reference for Java 17 compatibility -->
+    <!-- Resource References - Removed legacy JNDI datasource reference for Java 21 compatibility -->
 
 </web-app>

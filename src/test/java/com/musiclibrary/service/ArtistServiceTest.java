@@ -16,7 +16,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 /**
- * Unit tests for ArtistService using modern Java 17 testing patterns.
+ * Unit tests for ArtistService using modern Java 21 testing patterns.
  * 
  * Testing Approach:
  * - Validates artist business logic and data integrity rules
@@ -27,7 +27,7 @@ import static org.mockito.Mockito.*;
  * 
  * @author Music Library Development Team
  * @version 2.0
- * @since Java 17
+ * @since Java 21
  */
 @ExtendWith(MockitoExtension.class)
 public class ArtistServiceTest {

@@ -16,7 +16,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 /**
- * Unit tests for SongService using modern Java 17 testing patterns.
+ * Unit tests for SongService using modern Java 21 testing patterns.
  * 
  * Testing Approach:
  * - Uses JUnit 5 for modern test framework support
@@ -27,7 +27,7 @@ import static org.mockito.Mockito.*;
  * 
  * @author Music Library Development Team
  * @version 2.0
- * @since Java 17
+ * @since Java 21
  */
 @ExtendWith(MockitoExtension.class)
 public class SongServiceTest {
