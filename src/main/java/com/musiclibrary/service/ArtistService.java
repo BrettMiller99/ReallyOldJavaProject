@@ -1,19 +1,26 @@
 package com.musiclibrary.service;
 
-import com.musiclibrary.dao.ArtistDAO;
 import com.musiclibrary.model.Artist;
+import com.musiclibrary.repository.ArtistRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import java.util.Optional;
 
 /**
  * Artist Business Service Layer
  * 
- * Provides business logic operations for Artist entities using traditional Java 7 service patterns.
- * This service manages artist master data and enforces business rules for artist management.
+ * Provides business logic operations for Artist entities using modern Spring Boot patterns.
+ * This service manages artist master data and enforces business rules for artist management
+ * with automatic dependency injection and transaction management.
  * 
  * Business Logic:
  * - Validates artist data before persistence operations
@@ -23,44 +30,35 @@ import java.util.logging.Logger;
  * - Handles error scenarios with appropriate business messaging
  * - Enforces referential integrity rules for artist deletions
  * 
- * Migration Opportunities:
- * - Manual service layer -> Spring Service with @Service annotation
- * - Manual transaction management -> @Transactional annotations
- * - Manual dependency injection -> @Autowired DAO injection
- * - java.util.logging -> SLF4J with structured logging
- * - Manual exception handling -> Spring @ControllerAdvice
- * - Traditional validation -> Bean Validation with @Valid
- * - Manual DAO instantiation -> Spring dependency injection
- * - Basic error handling -> Spring exception hierarchy
+ * Modern Features:
+ * - Spring Service with @Service annotation for automatic component scanning
+ * - @Transactional annotations for declarative transaction management
+ * - @Autowired DAO injection for automatic dependency resolution
+ * - SLF4J with structured logging for better observability
+ * - Spring exception hierarchy for consistent error handling
+ * - Bean Validation integration for data validation
  * 
  * @author Music Library Development Team
- * @version 1.0
- * @since Java 7
+ * @version 2.0
+ * @since Java 17
  */
+@Service
+@Transactional
 public class ArtistService {
     
-    // Traditional Java logging - migration opportunity
-    private static final Logger LOGGER = Logger.getLogger(ArtistService.class.getName());
+    private static final Logger logger = LoggerFactory.getLogger(ArtistService.class);
     
-    // Manual DAO instantiation - migration opportunity to dependency injection
-    private final ArtistDAO artistDAO;
+    private final ArtistRepository artistRepository;
     
     /**
-     * Constructor with manual dependency injection.
-     * Traditional approach - migration opportunity to @Autowired constructor injection.
-     */
-    public ArtistService() {
-        this.artistDAO = new ArtistDAO();
-    }
-    
-    /**
-     * Constructor for testing with DAO injection.
-     * Allows for mock DAO injection during unit testing.
+     * Constructor with automatic dependency injection.
+     * Spring automatically injects the ArtistRepository dependency.
      * 
-     * @param artistDAO DAO instance to use
+     * @param artistRepository the artist repository
      */
-    public ArtistService(ArtistDAO artistDAO) {
-        this.artistDAO = artistDAO;
+    @Autowired
+    public ArtistService(ArtistRepository artistRepository) {
+        this.artistRepository = artistRepository;
     }
     
     /**
@@ -79,7 +77,7 @@ public class ArtistService {
      * @throws RuntimeException if database operation fails
      */
     public Artist createArtist(Artist artist) {
-        LOGGER.info("Creating new artist: " + (artist != null ? artist.getArtistName() : "null"));
+        logger.info("Creating new artist: " + (artist != null ? artist.getArtistName() : "null"));
         
         try {
             // Business validation before persistence
@@ -88,17 +86,17 @@ public class ArtistService {
             // Apply business rules and defaults
             applyArtistBusinessRules(artist);
             
-            Artist createdArtist = artistDAO.create(artist);
-            LOGGER.info("Successfully created artist with ID: " + createdArtist.getArtistId());
+            Artist createdArtist = artistRepository.save(artist);
+            logger.info("Successfully created artist with ID: " + createdArtist.getArtistId());
             
             return createdArtist;
             
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Database error creating artist", e);
-            throw new RuntimeException("Failed to create artist: " + e.getMessage(), e);
         } catch (IllegalArgumentException e) {
-            LOGGER.log(Level.WARNING, "Invalid artist data: " + e.getMessage(), e);
+            logger.warn("Invalid artist data: " + e.getMessage(), e);
             throw e;
+        } catch (Exception e) {
+            logger.error("Database error creating artist", e);
+            throw new RuntimeException("Failed to create artist: " + e.getMessage(), e);
         }
     }
     
@@ -116,17 +114,18 @@ public class ArtistService {
         }
         
         try {
-            Artist artist = artistDAO.findById(artistId);
-            if (artist != null) {
-                LOGGER.fine("Retrieved artist: " + artist.getArtistName());
+            Optional<Artist> artistOptional = artistRepository.findById(artistId);
+            if (artistOptional.isPresent()) {
+                Artist artist = artistOptional.get();
+                logger.debug("Retrieved artist: " + artist.getArtistName());
+                return artist;
             } else {
-                LOGGER.fine("Artist not found with ID: " + artistId);
+                logger.debug("Artist not found with ID: " + artistId);
+                return null;
             }
             
-            return artist;
-            
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Database error retrieving artist ID: " + artistId, e);
+        } catch (Exception e) {
+            logger.error("Database error retrieving artist ID: " + artistId, e);
             throw new RuntimeException("Failed to retrieve artist: " + e.getMessage(), e);
         }
     }
@@ -143,16 +142,16 @@ public class ArtistService {
      * @throws RuntimeException if database operation fails
      */
     public List<Artist> getAllArtists() {
-        LOGGER.info("Retrieving all artists");
+        logger.info("Retrieving all artists");
         
         try {
-            List<Artist> artists = artistDAO.findAll();
-            LOGGER.info("Retrieved " + artists.size() + " artists");
+            List<Artist> artists = artistRepository.findAll();
+            logger.info("Retrieved " + artists.size() + " artists");
             
             return artists;
             
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Database error retrieving all artists", e);
+        } catch (Exception e) {
+            logger.error("Database error retrieving all artists", e);
             throw new RuntimeException("Failed to retrieve artists: " + e.getMessage(), e);
         }
     }
@@ -172,7 +171,7 @@ public class ArtistService {
      * @throws RuntimeException if database operation fails
      */
     public Artist updateArtist(Artist artist) {
-        LOGGER.info("Updating artist: " + (artist != null ? artist.getArtistName() : "null"));
+        logger.info("Updating artist: " + (artist != null ? artist.getArtistName() : "null"));
         
         try {
             // Business validation for updates
@@ -181,17 +180,17 @@ public class ArtistService {
             // Apply business rules
             applyArtistBusinessRules(artist);
             
-            Artist updatedArtist = artistDAO.update(artist);
-            LOGGER.info("Successfully updated artist with ID: " + updatedArtist.getArtistId());
+            Artist updatedArtist = artistRepository.save(artist);
+            logger.info("Successfully updated artist with ID: " + updatedArtist.getArtistId());
             
             return updatedArtist;
             
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Database error updating artist", e);
-            throw new RuntimeException("Failed to update artist: " + e.getMessage(), e);
         } catch (IllegalArgumentException e) {
-            LOGGER.log(Level.WARNING, "Invalid artist update data: " + e.getMessage(), e);
+            logger.warn("Invalid artist update data: " + e.getMessage(), e);
             throw e;
+        } catch (Exception e) {
+            logger.error("Database error updating artist", e);
+            throw new RuntimeException("Failed to update artist: " + e.getMessage(), e);
         }
     }
     
@@ -215,29 +214,26 @@ public class ArtistService {
             throw new IllegalArgumentException("Invalid artist ID provided");
         }
         
-        LOGGER.info("Deleting artist with ID: " + artistId);
+        logger.info("Deleting artist with ID: " + artistId);
         
         try {
-            boolean deleted = artistDAO.delete(artistId);
-            
-            if (deleted) {
-                LOGGER.info("Successfully deleted artist with ID: " + artistId);
+            boolean exists = artistRepository.existsById(artistId);
+            if (exists) {
+                artistRepository.deleteById(artistId);
+                logger.info("Successfully deleted artist with ID: " + artistId);
+                return true;
             } else {
-                LOGGER.warning("Artist not found for deletion with ID: " + artistId);
+                logger.warn("Artist not found for deletion with ID: " + artistId);
+                return false;
             }
             
-            return deleted;
+        } catch (Exception e) {
+            logger.error("Database error deleting artist ID: " + artistId, e);
             
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Database error deleting artist ID: " + artistId, e);
-            
-            // Provide business-friendly error messages
-            if (e.getMessage().contains("has") && e.getMessage().contains("songs")) {
-                throw new RuntimeException("Cannot delete artist: artist has associated songs. " +
-                    "Please remove all songs first.", e);
-            } else if (e.getMessage().contains("has") && e.getMessage().contains("albums")) {
-                throw new RuntimeException("Cannot delete artist: artist has associated albums. " +
-                    "Please remove all albums first.", e);
+            // Provide business-friendly error messages for constraint violations
+            if (e.getMessage().contains("constraint") || e.getMessage().contains("foreign key")) {
+                throw new RuntimeException("Cannot delete artist: artist has associated songs or albums. " +
+                    "Please remove all songs and albums first.", e);
             } else {
                 throw new RuntimeException("Failed to delete artist: " + e.getMessage(), e);
             }
@@ -258,22 +254,22 @@ public class ArtistService {
      * @throws RuntimeException if database operation fails
      */
     public List<Artist> searchArtists(String query) {
-        LOGGER.info("Searching artists with query: " + query);
+        logger.info("Searching artists with query: " + query);
         
         // Handle empty queries without calling DAO
         if (query == null || query.trim().isEmpty()) {
-            LOGGER.info("Empty query provided, returning empty list");
+            logger.info("Empty query provided, returning empty list");
             return new ArrayList<Artist>();
         }
         
         try {
-            List<Artist> artists = artistDAO.search(query);
-            LOGGER.info("Search returned " + artists.size() + " artists");
+            List<Artist> artists = artistRepository.searchByName(query);
+            logger.info("Search returned " + artists.size() + " artists");
             
             return artists;
             
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Database error searching artists", e);
+        } catch (Exception e) {
+            logger.error("Database error searching artists", e);
             throw new RuntimeException("Failed to search artists: " + e.getMessage(), e);
         }
     }
@@ -301,16 +297,18 @@ public class ArtistService {
         }
         
         int offset = page * size;
-        LOGGER.fine("Retrieving artists with pagination: page=" + page + ", size=" + size);
+        logger.debug("Retrieving artists with pagination: page=" + page + ", size=" + size);
         
         try {
-            List<Artist> artists = artistDAO.findWithPagination(offset, size);
-            LOGGER.fine("Retrieved " + artists.size() + " artists for page " + page);
+            Pageable pageable = PageRequest.of(page, size);
+            Page<Artist> artistsPage = artistRepository.findAll(pageable);
+            List<Artist> artists = artistsPage.getContent();
+            logger.debug("Retrieved " + artists.size() + " artists for page " + page);
             
             return artists;
             
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Database error retrieving paginated artists", e);
+        } catch (Exception e) {
+            logger.error("Database error retrieving paginated artists", e);
             throw new RuntimeException("Failed to retrieve artists: " + e.getMessage(), e);
         }
     }
@@ -323,13 +321,13 @@ public class ArtistService {
      */
     public long getTotalArtistCount() {
         try {
-            long count = artistDAO.count();
-            LOGGER.fine("Total artist count: " + count);
+            long count = artistRepository.count();
+            logger.debug("Total artist count: " + count);
             
             return count;
             
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Database error getting artist count", e);
+        } catch (Exception e) {
+            logger.error("Database error getting artist count", e);
             throw new RuntimeException("Failed to get artist count: " + e.getMessage(), e);
         }
     }
@@ -350,13 +348,13 @@ public class ArtistService {
         }
         
         try {
-            boolean exists = artistDAO.exists(artistId);
-            LOGGER.fine("Artist existence check for ID " + artistId + ": " + exists);
+            boolean exists = artistRepository.existsById(artistId);
+            logger.debug("Artist existence check for ID " + artistId + ": " + exists);
             
             return exists;
             
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Database error checking artist existence", e);
+        } catch (Exception e) {
+            logger.error("Database error checking artist existence", e);
             throw new RuntimeException("Failed to check artist existence: " + e.getMessage(), e);
         }
     }
@@ -402,6 +400,14 @@ public class ArtistService {
                 throw new IllegalArgumentException("Website URL must start with http:// or https://");
             }
         }
+        
+        // Business rule: Check for duplicate artist names (only for creation, not updates)
+        if (artist.getArtistName() != null && artist.getArtistId() == null) {
+            Optional<Artist> existingArtist = artistRepository.findByArtistNameIgnoreCase(artist.getArtistName().trim());
+            if (existingArtist.isPresent()) {
+                throw new IllegalArgumentException("Artist with name '" + artist.getArtistName() + "' already exists");
+            }
+        }
     }
     
     /**
@@ -420,8 +426,48 @@ public class ArtistService {
             throw new IllegalArgumentException("Artist ID is required for updates");
         }
         
-        // Run creation validation as well
-        validateArtistForCreation(artist);
+        // Run creation validation as well, but skip duplicate name check for updates
+        if (artist == null) {
+            throw new IllegalArgumentException("Artist cannot be null");
+        }
+        
+        if (!artist.isValid()) {
+            throw new IllegalArgumentException("Artist data is incomplete or invalid");
+        }
+        
+        // Additional business validation
+        if (artist.getArtistName() == null || artist.getArtistName().trim().isEmpty()) {
+            throw new IllegalArgumentException("Artist name is required");
+        }
+        
+        // Business rule: Artist name should be reasonable length
+        if (artist.getArtistName().length() > 255) {
+            throw new IllegalArgumentException("Artist name is too long (maximum 255 characters)");
+        }
+        
+        // Validate formation year if provided
+        if (artist.getFormedYear() != null) {
+            int currentYear = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR);
+            if (artist.getFormedYear() < 1900 || artist.getFormedYear() > currentYear) {
+                throw new IllegalArgumentException("Formation year must be between 1900 and " + currentYear);
+            }
+        }
+        
+        // Validate website URL format if provided
+        if (artist.getWebsite() != null && !artist.getWebsite().trim().isEmpty()) {
+            String website = artist.getWebsite().trim().toLowerCase();
+            if (!website.startsWith("http://") && !website.startsWith("https://")) {
+                throw new IllegalArgumentException("Website URL must start with http:// or https://");
+            }
+        }
+        
+        // Business rule: Check for duplicate artist names (for updates, exclude current artist)
+        if (artist.getArtistName() != null && artist.getArtistId() != null) {
+            Optional<Artist> existingArtist = artistRepository.findByArtistNameIgnoreCase(artist.getArtistName().trim());
+            if (existingArtist.isPresent() && !existingArtist.get().getArtistId().equals(artist.getArtistId())) {
+                throw new IllegalArgumentException("Artist with name '" + artist.getArtistName() + "' already exists");
+            }
+        }
     }
     
     /**
@@ -458,10 +504,13 @@ public class ArtistService {
             }
         }
         
-        // Business rule: Capitalize country names
+        // Business rule: Capitalize country names (preserve acronyms like USA, UK)
         if (artist.getCountry() != null && !artist.getCountry().isEmpty()) {
-            String country = artist.getCountry();
-            if (country.length() > 1) {
+            String country = artist.getCountry().trim();
+            if (country.equalsIgnoreCase("USA") || country.equalsIgnoreCase("UK") || 
+                country.equalsIgnoreCase("UAE") || country.equalsIgnoreCase("USSR")) {
+                artist.setCountry(country.toUpperCase());
+            } else if (country.length() > 1) {
                 artist.setCountry(country.substring(0, 1).toUpperCase() + 
                                 country.substring(1).toLowerCase());
             } else {
@@ -489,16 +538,16 @@ public class ArtistService {
             throw new IllegalArgumentException("Invalid country name provided");
         }
         
-        LOGGER.fine("Retrieving artists for country: " + country);
+        logger.debug("Retrieving artists for country: " + country);
         
         try {
-            List<Artist> artists = artistDAO.findByCountry(country.trim());
-            LOGGER.fine("Retrieved " + artists.size() + " artists for country: " + country);
+            List<Artist> artists = artistRepository.findByCountryIgnoreCase(country.trim());
+            logger.debug("Retrieved " + artists.size() + " artists for country: " + country);
             
             return artists;
             
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Database error retrieving artists by country", e);
+        } catch (Exception e) {
+            logger.error("Database error retrieving artists by country", e);
             throw new RuntimeException("Failed to retrieve artists by country: " + e.getMessage(), e);
         }
     }

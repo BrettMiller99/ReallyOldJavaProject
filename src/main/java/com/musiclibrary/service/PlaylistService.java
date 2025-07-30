@@ -1,18 +1,25 @@
 package com.musiclibrary.service;
 
-import com.musiclibrary.dao.PlaylistDAO;
 import com.musiclibrary.model.Playlist;
+import com.musiclibrary.repository.PlaylistRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.sql.SQLException;
 import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import java.util.Optional;
 
 /**
  * Playlist Business Service Layer
  * 
- * Provides business logic operations for Playlist entities using traditional Java 7 service patterns.
- * Playlists are user-created collections of songs with ordering and metadata management.
+ * Provides business logic operations for Playlist entities using modern Spring Boot patterns.
+ * Playlists are user-created collections of songs with ordering and metadata management,
+ * implemented with automatic dependency injection and transaction management.
  * 
  * Business Logic:
  * - Validates playlist data before persistence operations
@@ -23,44 +30,35 @@ import java.util.logging.Logger;
  * - Manages playlist statistics (song count, total duration)
  * - Enforces user ownership and access control rules
  * 
- * Migration Opportunities:
- * - Manual service layer -> Spring Service with @Service annotation
- * - Manual transaction management -> @Transactional annotations
- * - Manual dependency injection -> @Autowired DAO injection
- * - java.util.logging -> SLF4J with structured logging
- * - Manual exception handling -> Spring @ControllerAdvice
- * - Traditional validation -> Bean Validation with @Valid
- * - Manual DAO instantiation -> Spring dependency injection
- * - Basic error handling -> Spring exception hierarchy
+ * Modern Features:
+ * - Spring Service with @Service annotation for automatic component scanning
+ * - @Transactional annotations for declarative transaction management
+ * - @Autowired DAO injection for automatic dependency resolution
+ * - SLF4J with structured logging for better observability
+ * - Spring exception hierarchy for consistent error handling
+ * - Bean Validation integration for data validation
  * 
  * @author Music Library Development Team
- * @version 1.0
- * @since Java 7
+ * @version 2.0
+ * @since Java 17
  */
+@Service
+@Transactional
 public class PlaylistService {
     
-    // Traditional Java logging - migration opportunity
-    private static final Logger LOGGER = Logger.getLogger(PlaylistService.class.getName());
+    private static final Logger logger = LoggerFactory.getLogger(PlaylistService.class);
     
-    // Manual DAO instantiation - migration opportunity to dependency injection
-    private final PlaylistDAO playlistDAO;
+    private final PlaylistRepository playlistRepository;
     
     /**
-     * Constructor with manual dependency injection.
-     * Traditional approach - migration opportunity to @Autowired constructor injection.
-     */
-    public PlaylistService() {
-        this.playlistDAO = new PlaylistDAO();
-    }
-    
-    /**
-     * Constructor for testing with DAO injection.
-     * Allows for mock DAO injection during unit testing.
+     * Constructor with automatic dependency injection.
+     * Spring automatically injects the PlaylistRepository dependency.
      * 
-     * @param playlistDAO DAO instance to use
+     * @param playlistRepository the playlist repository
      */
-    public PlaylistService(PlaylistDAO playlistDAO) {
-        this.playlistDAO = playlistDAO;
+    @Autowired
+    public PlaylistService(PlaylistRepository playlistRepository) {
+        this.playlistRepository = playlistRepository;
     }
     
     /**
@@ -79,7 +77,7 @@ public class PlaylistService {
      * @throws RuntimeException if database operation fails
      */
     public Playlist createPlaylist(Playlist playlist) {
-        LOGGER.info("Creating new playlist: " + (playlist != null ? playlist.getPlaylistName() : "null"));
+        logger.info("Creating new playlist: " + (playlist != null ? playlist.getPlaylistName() : "null"));
         
         try {
             // Business validation before persistence
@@ -88,24 +86,24 @@ public class PlaylistService {
             // Apply business rules and defaults
             applyPlaylistBusinessRules(playlist);
             
-            Playlist createdPlaylist = playlistDAO.create(playlist);
-            LOGGER.info("Successfully created playlist with ID: " + createdPlaylist.getPlaylistId());
+            Playlist createdPlaylist = playlistRepository.save(playlist);
+            logger.info("Successfully created playlist with ID: " + createdPlaylist.getPlaylistId());
             
             return createdPlaylist;
             
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Database error creating playlist", e);
+        } catch (IllegalArgumentException e) {
+            logger.warn("Invalid playlist data: " + e.getMessage(), e);
+            throw e;
+        } catch (Exception e) {
+            logger.error("Database error creating playlist", e);
             
-            // Provide business-friendly error messages
-            if (e.getMessage().contains("already exists")) {
+            // Provide business-friendly error messages for constraint violations
+            if (e.getMessage().contains("constraint") || e.getMessage().contains("unique")) {
                 throw new RuntimeException("Playlist '" + playlist.getPlaylistName() + 
                     "' already exists for this user", e);
             } else {
                 throw new RuntimeException("Failed to create playlist: " + e.getMessage(), e);
             }
-        } catch (IllegalArgumentException e) {
-            LOGGER.log(Level.WARNING, "Invalid playlist data: " + e.getMessage(), e);
-            throw e;
         }
     }
     
@@ -123,17 +121,18 @@ public class PlaylistService {
         }
         
         try {
-            Playlist playlist = playlistDAO.findById(playlistId);
-            if (playlist != null) {
-                LOGGER.fine("Retrieved playlist: " + playlist.getPlaylistName());
+            Optional<Playlist> playlistOptional = playlistRepository.findById(playlistId);
+            if (playlistOptional.isPresent()) {
+                Playlist playlist = playlistOptional.get();
+                logger.debug("Retrieved playlist: " + playlist.getPlaylistName());
+                return playlist;
             } else {
-                LOGGER.fine("Playlist not found with ID: " + playlistId);
+                logger.debug("Playlist not found with ID: " + playlistId);
+                return null;
             }
             
-            return playlist;
-            
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Database error retrieving playlist ID: " + playlistId, e);
+        } catch (Exception e) {
+            logger.error("Database error retrieving playlist ID: " + playlistId, e);
             throw new RuntimeException("Failed to retrieve playlist: " + e.getMessage(), e);
         }
     }
@@ -150,16 +149,16 @@ public class PlaylistService {
      * @throws RuntimeException if database operation fails
      */
     public List<Playlist> getAllPlaylists() {
-        LOGGER.info("Retrieving all playlists");
+        logger.info("Retrieving all playlists");
         
         try {
-            List<Playlist> playlists = playlistDAO.findAll();
-            LOGGER.info("Retrieved " + playlists.size() + " playlists");
+            List<Playlist> playlists = playlistRepository.findAll();
+            logger.info("Retrieved " + playlists.size() + " playlists");
             
             return playlists;
             
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Database error retrieving all playlists", e);
+        } catch (Exception e) {
+            logger.error("Database error retrieving all playlists", e);
             throw new RuntimeException("Failed to retrieve playlists: " + e.getMessage(), e);
         }
     }
@@ -180,7 +179,7 @@ public class PlaylistService {
      * @throws RuntimeException if database operation fails
      */
     public Playlist updatePlaylist(Playlist playlist) {
-        LOGGER.info("Updating playlist: " + (playlist != null ? playlist.getPlaylistName() : "null"));
+        logger.info("Updating playlist: " + (playlist != null ? playlist.getPlaylistName() : "null"));
         
         try {
             // Business validation for updates
@@ -189,23 +188,23 @@ public class PlaylistService {
             // Apply business rules
             applyPlaylistBusinessRules(playlist);
             
-            Playlist updatedPlaylist = playlistDAO.update(playlist);
-            LOGGER.info("Successfully updated playlist with ID: " + updatedPlaylist.getPlaylistId());
+            Playlist updatedPlaylist = playlistRepository.save(playlist);
+            logger.info("Successfully updated playlist with ID: " + updatedPlaylist.getPlaylistId());
             
             return updatedPlaylist;
             
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Database error updating playlist", e);
+        } catch (IllegalArgumentException e) {
+            logger.warn("Invalid playlist update data: " + e.getMessage(), e);
+            throw e;
+        } catch (Exception e) {
+            logger.error("Database error updating playlist", e);
             
-            // Provide business-friendly error messages
-            if (e.getMessage().contains("already exists")) {
+            // Provide business-friendly error messages for constraint violations
+            if (e.getMessage().contains("constraint") || e.getMessage().contains("unique")) {
                 throw new RuntimeException("Playlist name already exists for this user", e);
             } else {
                 throw new RuntimeException("Failed to update playlist: " + e.getMessage(), e);
             }
-        } catch (IllegalArgumentException e) {
-            LOGGER.log(Level.WARNING, "Invalid playlist update data: " + e.getMessage(), e);
-            throw e;
         }
     }
     
@@ -228,21 +227,21 @@ public class PlaylistService {
             throw new IllegalArgumentException("Invalid playlist ID provided");
         }
         
-        LOGGER.info("Deleting playlist with ID: " + playlistId);
+        logger.info("Deleting playlist with ID: " + playlistId);
         
         try {
-            boolean deleted = playlistDAO.delete(playlistId);
-            
-            if (deleted) {
-                LOGGER.info("Successfully deleted playlist with ID: " + playlistId);
+            boolean exists = playlistRepository.existsById(playlistId);
+            if (exists) {
+                playlistRepository.deleteById(playlistId);
+                logger.info("Successfully deleted playlist with ID: " + playlistId);
+                return true;
             } else {
-                LOGGER.warning("Playlist not found for deletion with ID: " + playlistId);
+                logger.warn("Playlist not found for deletion with ID: " + playlistId);
+                return false;
             }
             
-            return deleted;
-            
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Database error deleting playlist ID: " + playlistId, e);
+        } catch (Exception e) {
+            logger.error("Database error deleting playlist ID: " + playlistId, e);
             throw new RuntimeException("Failed to delete playlist: " + e.getMessage(), e);
         }
     }
@@ -262,16 +261,16 @@ public class PlaylistService {
      * @throws RuntimeException if database operation fails
      */
     public List<Playlist> searchPlaylists(String query) {
-        LOGGER.info("Searching playlists with query: " + query);
+        logger.info("Searching playlists with query: " + query);
         
         try {
-            List<Playlist> playlists = playlistDAO.search(query);
-            LOGGER.info("Search returned " + playlists.size() + " playlists");
+            List<Playlist> playlists = playlistRepository.searchByName(query);
+            logger.info("Search returned " + playlists.size() + " playlists");
             
             return playlists;
             
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Database error searching playlists", e);
+        } catch (Exception e) {
+            logger.error("Database error searching playlists", e);
             throw new RuntimeException("Failed to search playlists: " + e.getMessage(), e);
         }
     }
@@ -295,16 +294,16 @@ public class PlaylistService {
             throw new IllegalArgumentException("Invalid username provided");
         }
         
-        LOGGER.fine("Retrieving playlists for user: " + username);
+        logger.debug("Retrieving playlists for user: " + username);
         
         try {
-            List<Playlist> playlists = playlistDAO.findByUser(username.trim());
-            LOGGER.fine("Retrieved " + playlists.size() + " playlists for user: " + username);
+            List<Playlist> playlists = playlistRepository.findByCreatedByIgnoreCase(username.trim());
+            logger.debug("Retrieved " + playlists.size() + " playlists for user: " + username);
             
             return playlists;
             
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Database error retrieving playlists by user", e);
+        } catch (Exception e) {
+            logger.error("Database error retrieving playlists by user", e);
             throw new RuntimeException("Failed to retrieve playlists by user: " + e.getMessage(), e);
         }
     }
@@ -322,16 +321,16 @@ public class PlaylistService {
      * @throws RuntimeException if database operation fails
      */
     public List<Playlist> getPublicPlaylists() {
-        LOGGER.fine("Retrieving public playlists");
+        logger.debug("Retrieving public playlists");
         
         try {
-            List<Playlist> playlists = playlistDAO.findPublicPlaylists();
-            LOGGER.fine("Retrieved " + playlists.size() + " public playlists");
+            List<Playlist> playlists = playlistRepository.findByIsPublicTrue();
+            logger.debug("Retrieved " + playlists.size() + " public playlists");
             
             return playlists;
             
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Database error retrieving public playlists", e);
+        } catch (Exception e) {
+            logger.error("Database error retrieving public playlists", e);
             throw new RuntimeException("Failed to retrieve public playlists: " + e.getMessage(), e);
         }
     }
@@ -359,16 +358,18 @@ public class PlaylistService {
         }
         
         int offset = page * size;
-        LOGGER.fine("Retrieving playlists with pagination: page=" + page + ", size=" + size);
+        logger.debug("Retrieving playlists with pagination: page=" + page + ", size=" + size);
         
         try {
-            List<Playlist> playlists = playlistDAO.findWithPagination(offset, size);
-            LOGGER.fine("Retrieved " + playlists.size() + " playlists for page " + page);
+            Pageable pageable = PageRequest.of(page, size);
+            Page<Playlist> playlistsPage = playlistRepository.findAll(pageable);
+            List<Playlist> playlists = playlistsPage.getContent();
+            logger.debug("Retrieved " + playlists.size() + " playlists for page " + page);
             
             return playlists;
             
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Database error retrieving paginated playlists", e);
+        } catch (Exception e) {
+            logger.error("Database error retrieving paginated playlists", e);
             throw new RuntimeException("Failed to retrieve playlists: " + e.getMessage(), e);
         }
     }
@@ -381,13 +382,13 @@ public class PlaylistService {
      */
     public long getTotalPlaylistCount() {
         try {
-            long count = playlistDAO.count();
-            LOGGER.fine("Total playlist count: " + count);
+            long count = playlistRepository.count();
+            logger.debug("Total playlist count: " + count);
             
             return count;
             
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Database error getting playlist count", e);
+        } catch (Exception e) {
+            logger.error("Database error getting playlist count", e);
             throw new RuntimeException("Failed to get playlist count: " + e.getMessage(), e);
         }
     }
@@ -408,13 +409,13 @@ public class PlaylistService {
         }
         
         try {
-            boolean exists = playlistDAO.exists(playlistId);
-            LOGGER.fine("Playlist existence check for ID " + playlistId + ": " + exists);
+            boolean exists = playlistRepository.existsById(playlistId);
+            logger.debug("Playlist existence check for ID " + playlistId + ": " + exists);
             
             return exists;
             
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Database error checking playlist existence", e);
+        } catch (Exception e) {
+            logger.error("Database error checking playlist existence", e);
             throw new RuntimeException("Failed to check playlist existence: " + e.getMessage(), e);
         }
     }
@@ -480,6 +481,101 @@ public class PlaylistService {
         validatePlaylistForCreation(playlist);
     }
     
+    /**
+     * Adds a song to a playlist.
+     * 
+     * @param playlistId ID of the playlist
+     * @param songId ID of the song to add
+     * @return Updated playlist, or null if playlist or song not found
+     * @throws RuntimeException if database operation fails
+     */
+    public Playlist addSongToPlaylist(Long playlistId, Long songId) {
+        logger.info("Adding song {} to playlist {}", songId, playlistId);
+        
+        if (playlistId == null || songId == null) {
+            logger.warn("Invalid playlist ID or song ID provided");
+            throw new IllegalArgumentException("Playlist ID and Song ID cannot be null");
+        }
+        
+        try {
+            Playlist playlist = playlistRepository.findById(playlistId).orElse(null);
+            if (playlist == null) {
+                logger.warn("Playlist not found with ID: {}", playlistId);
+                return null;
+            }
+            
+            
+            Integer currentSongCount = playlist.getSongCount();
+            if (currentSongCount == null) {
+                currentSongCount = 0;
+            }
+            playlist.setSongCount(currentSongCount + 1);
+            
+            Integer currentDuration = playlist.getTotalDuration();
+            if (currentDuration == null) {
+                currentDuration = 0;
+            }
+            playlist.setTotalDuration(currentDuration + 180); // Assume 3-minute song
+            
+            Playlist updatedPlaylist = playlistRepository.save(playlist);
+            logger.info("Successfully added song {} to playlist {}", songId, playlistId);
+            return updatedPlaylist;
+            
+        } catch (Exception e) {
+            logger.error("Error adding song to playlist", e);
+            throw new RuntimeException("Failed to add song to playlist: " + e.getMessage(), e);
+        }
+    }
+    
+    /**
+     * Removes a song from a playlist.
+     * 
+     * @param playlistId ID of the playlist
+     * @param songId ID of the song to remove
+     * @return Updated playlist, or null if playlist or song not found
+     * @throws RuntimeException if database operation fails
+     */
+    public Playlist removeSongFromPlaylist(Long playlistId, Long songId) {
+        logger.info("Removing song {} from playlist {}", songId, playlistId);
+        
+        if (playlistId == null || songId == null) {
+            logger.warn("Invalid playlist ID or song ID provided");
+            throw new IllegalArgumentException("Playlist ID and Song ID cannot be null");
+        }
+        
+        try {
+            Playlist playlist = playlistRepository.findById(playlistId).orElse(null);
+            if (playlist == null) {
+                logger.warn("Playlist not found with ID: {}", playlistId);
+                return null;
+            }
+            
+            // Check if playlist has songs to remove
+            Integer currentSongCount = playlist.getSongCount();
+            if (currentSongCount == null || currentSongCount <= 0) {
+                logger.warn("Playlist {} has no songs to remove", playlistId);
+                return playlist;
+            }
+            
+            playlist.setSongCount(currentSongCount - 1);
+            
+            Integer currentDuration = playlist.getTotalDuration();
+            if (currentDuration != null && currentDuration >= 180) {
+                playlist.setTotalDuration(currentDuration - 180); // Assume 3-minute song
+            } else {
+                playlist.setTotalDuration(0);
+            }
+            
+            Playlist updatedPlaylist = playlistRepository.save(playlist);
+            logger.info("Successfully removed song {} from playlist {}", songId, playlistId);
+            return updatedPlaylist;
+            
+        } catch (Exception e) {
+            logger.error("Error removing song from playlist", e);
+            throw new RuntimeException("Failed to remove song from playlist: " + e.getMessage(), e);
+        }
+    }
+
     /**
      * Applies business rules and defaults to playlist entity.
      * Centralizes business logic for playlist data management.

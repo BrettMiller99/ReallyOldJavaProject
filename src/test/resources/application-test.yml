@@ -1,0 +1,47 @@
+# Test Profile Configuration
+# Provides isolated database configuration for integration tests
+
+spring:
+  # Test Database Configuration - H2 in-memory with unique name per test
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    jdbc-url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password: 
+    driver-class-name: org.h2.Driver
+    
+  # JPA/Hibernate Configuration for Tests
+  jpa:
+    hibernate:
+      ddl-auto: create-drop  # Fresh schema for each test run
+    show-sql: false         # Reduce test output noise
+    properties:
+      hibernate:
+        format_sql: false   # Reduce test output noise
+        dialect: org.hibernate.dialect.H2Dialect
+        
+  # Disable H2 Console in tests
+  h2:
+    console:
+      enabled: false
+
+# Logging Configuration for Tests
+logging:
+  level:
+    com.musiclibrary: INFO  # Reduce log noise in tests
+    org.springframework.web: WARN
+    org.hibernate.SQL: WARN
+    org.hibernate.type.descriptor.sql.BasicBinder: WARN
+  pattern:
+    console: "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+
+# Test-specific application configuration
+musiclibrary:
+  pagination:
+    default-page-size: 10   # Smaller page size for faster tests
+    max-page-size: 50
+  search:
+    min-search-length: 1    # Allow single character searches in tests
+  file:
+    upload-path: /tmp/test-music-files
+    max-file-size: 10MB     # Smaller file size for tests

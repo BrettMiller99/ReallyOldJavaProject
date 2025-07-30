@@ -108,28 +108,27 @@ CREATE INDEX IF NOT EXISTS idx_playlist_songs_playlist ON playlist_songs(playlis
 
 -- Insert sample data for development and testing
 -- This demonstrates traditional INSERT statements vs modern data fixtures
-INSERT INTO artists (artist_name, biography, country, formed_year, website) VALUES 
-('The Beatles', 'Legendary British rock band formed in Liverpool in 1960.', 'United Kingdom', 1960, 'http://www.thebeatles.com'),
-('Led Zeppelin', 'English rock band formed in London in 1968.', 'United Kingdom', 1968, 'http://www.ledzeppelin.com'),
-('Pink Floyd', 'English rock band formed in London in 1965.', 'United Kingdom', 1965, 'http://www.pinkfloyd.com');
+INSERT INTO artists (artist_id, artist_name, biography, country, formed_year, website, created_date, last_modified) VALUES (1, 'The Beatles', 'Legendary British rock band formed in Liverpool in 1960.', 'United Kingdom', 1960, 'http://www.thebeatles.com', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+INSERT INTO artists (artist_id, artist_name, biography, country, formed_year, website, created_date, last_modified) VALUES (2, 'Led Zeppelin', 'English rock band formed in London in 1968.', 'United Kingdom', 1968, 'http://www.ledzeppelin.com', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+INSERT INTO artists (artist_id, artist_name, biography, country, formed_year, website, created_date, last_modified) VALUES (3, 'Pink Floyd', 'English rock band formed in London in 1965.', 'United Kingdom', 1965, 'http://www.pinkfloyd.com', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
 
-INSERT INTO albums (album_name, artist_id, release_date, genre, record_label, total_tracks) VALUES 
-('Abbey Road', 1, '1969-09-26', 'Rock', 'Apple Records', 17),
-('Led Zeppelin IV', 2, '1971-11-08', 'Rock', 'Atlantic Records', 8),
-('The Dark Side of the Moon', 3, '1973-03-01', 'Progressive Rock', 'Harvest Records', 9);
+INSERT INTO albums (album_id, album_name, artist_id, release_date, genre, record_label, total_tracks, created_date, last_modified) VALUES (1, 'Abbey Road', 1, '1969-09-26', 'Rock', 'Apple Records', 17, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+INSERT INTO albums (album_id, album_name, artist_id, release_date, genre, record_label, total_tracks, created_date, last_modified) VALUES (2, 'Led Zeppelin IV', 2, '1971-11-08', 'Rock', 'Atlantic Records', 8, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+INSERT INTO albums (album_id, album_name, artist_id, release_date, genre, record_label, total_tracks, created_date, last_modified) VALUES (3, 'The Dark Side of the Moon', 3, '1973-03-01', 'Progressive Rock', 'Harvest Records', 9, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
 
-INSERT INTO songs (song_name, album_id, artist_id, track_number, track_length, date_released, genre, rating) VALUES 
-('Come Together', 1, 1, 1, 259, '1969-09-26', 'Rock', 5),
-('Something', 1, 1, 2, 182, '1969-09-26', 'Rock', 5),
-('Stairway to Heaven', 2, 2, 4, 482, '1971-11-08', 'Rock', 5),
-('Black Dog', 2, 2, 1, 295, '1971-11-08', 'Rock', 4),
-('Time', 3, 3, 4, 413, '1973-03-01', 'Progressive Rock', 5),
-('Money', 3, 3, 6, 382, '1973-03-01', 'Progressive Rock', 4);
+INSERT INTO songs (song_id, song_name, album_id, artist_id, track_number, track_length, date_released, genre, rating, created_date, last_modified) VALUES (1, 'Come Together', 1, 1, 1, 259, '1969-09-26', 'Rock', 5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+INSERT INTO songs (song_id, song_name, album_id, artist_id, track_number, track_length, date_released, genre, rating, created_date, last_modified) VALUES (2, 'Something', 1, 1, 2, 182, '1969-09-26', 'Rock', 5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+INSERT INTO songs (song_id, song_name, album_id, artist_id, track_number, track_length, date_released, genre, rating, created_date, last_modified) VALUES (3, 'Stairway to Heaven', 2, 2, 4, 482, '1971-11-08', 'Rock', 5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+INSERT INTO songs (song_id, song_name, album_id, artist_id, track_number, track_length, date_released, genre, rating, created_date, last_modified) VALUES (4, 'Black Dog', 2, 2, 1, 295, '1971-11-08', 'Rock', 4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+INSERT INTO songs (song_id, song_name, album_id, artist_id, track_number, track_length, date_released, genre, rating, created_date, last_modified) VALUES (5, 'Time', 3, 3, 4, 413, '1973-03-01', 'Progressive Rock', 5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+INSERT INTO songs (song_id, song_name, album_id, artist_id, track_number, track_length, date_released, genre, rating, created_date, last_modified) VALUES (6, 'Money', 3, 3, 6, 382, '1973-03-01', 'Progressive Rock', 4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
 
-INSERT INTO playlists (playlist_name, description, created_by) VALUES 
-('Classic Rock Hits', 'Best classic rock songs of all time', 'admin'),
-('Driving Songs', 'Perfect songs for long drives', 'admin');
+INSERT INTO playlists (playlist_id, playlist_name, description, created_by, created_date, last_modified) VALUES (1, 'Classic Rock Hits', 'Best classic rock songs of all time', 'admin', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+INSERT INTO playlists (playlist_id, playlist_name, description, created_by, created_date, last_modified) VALUES (2, 'Driving Songs', 'Perfect songs for long drives', 'admin', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
 
-INSERT INTO playlist_songs (playlist_id, song_id, position_order) VALUES 
-(1, 1, 1), (1, 3, 2), (1, 5, 3),
-(2, 3, 1), (2, 4, 2), (2, 6, 3);
+-- INSERT INTO playlist_songs (playlist_id, song_id, position_order) VALUES (1, 1, 1);
+-- INSERT INTO playlist_songs (playlist_id, song_id, position_order) VALUES (1, 3, 2);
+-- INSERT INTO playlist_songs (playlist_id, song_id, position_order) VALUES (1, 5, 3);
+-- INSERT INTO playlist_songs (playlist_id, song_id, position_order) VALUES (2, 3, 1);
+-- INSERT INTO playlist_songs (playlist_id, song_id, position_order) VALUES (2, 4, 2);
+-- INSERT INTO playlist_songs (playlist_id, song_id, position_order) VALUES (2, 6, 3);

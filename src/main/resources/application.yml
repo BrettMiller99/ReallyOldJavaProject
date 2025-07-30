@@ -1,0 +1,59 @@
+# Spring Boot Application Configuration
+# Migrated from traditional web.xml and manual database configuration
+
+spring:
+  # Database Configuration - H2 in-memory for development
+  datasource:
+    url: jdbc:h2:mem:musiclibrary
+    username: sa
+    password: 
+    driver-class-name: org.h2.Driver
+    
+  # JPA/Hibernate Configuration
+  jpa:
+    hibernate:
+      ddl-auto: create-drop  # Automatically create/drop tables for development
+    show-sql: true          # Log SQL statements for debugging
+    properties:
+      hibernate:
+        format_sql: true    # Format SQL for readability
+        dialect: org.hibernate.dialect.H2Dialect
+    
+  # H2 Console for database inspection (development only)
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+      
+  # Web Configuration
+  web:
+    resources:
+      add-mappings: true
+      
+# Server Configuration
+server:
+  port: 8080
+  servlet:
+    context-path: /api
+
+# Logging Configuration
+logging:
+  level:
+    com.musiclibrary: DEBUG
+    org.springframework.web: INFO
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+# Application-specific configuration
+musiclibrary:
+  pagination:
+    default-page-size: 20
+    max-page-size: 100
+  search:
+    min-search-length: 2
+  file:
+    upload-path: /tmp/music-files
+    max-file-size: 50MB

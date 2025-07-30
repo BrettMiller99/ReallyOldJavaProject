@@ -1,21 +1,27 @@
 package com.musiclibrary.service;
 
-import com.musiclibrary.dao.AlbumDAO;
 import com.musiclibrary.model.Album;
+import com.musiclibrary.repository.AlbumRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.sql.SQLException;
+import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import java.util.Optional;
 
 /**
  * Album Business Service Layer
  * 
- * Provides business logic operations for Album entities using traditional Java 7 service patterns.
+ * Provides business logic operations for Album entities using modern Spring Boot patterns.
  * Albums serve as intermediate entities between artists and songs, representing collections
- * of songs released together by an artist.
+ * of songs released together by an artist with automatic dependency injection and transaction management.
  * 
  * Business Logic:
  * - Validates album data before persistence operations
@@ -25,44 +31,36 @@ import java.util.logging.Logger;
  * - Handles release date validation and chronological ordering
  * - Manages track count consistency with actual song records
  * 
- * Migration Opportunities:
- * - Manual service layer -> Spring Service with @Service annotation
- * - Manual transaction management -> @Transactional annotations
- * - Manual dependency injection -> @Autowired DAO injection
- * - java.util.logging -> SLF4J with structured logging
- * - Manual exception handling -> Spring @ControllerAdvice
- * - Traditional validation -> Bean Validation with @Valid
- * - Date handling -> LocalDate (Java 8+)
- * - Manual DAO instantiation -> Spring dependency injection
+ * Modern Features:
+ * - Spring Service with @Service annotation for automatic component scanning
+ * - @Transactional annotations for declarative transaction management
+ * - @Autowired DAO injection for automatic dependency resolution
+ * - SLF4J with structured logging for better observability
+ * - Spring exception hierarchy for consistent error handling
+ * - Bean Validation integration for data validation
+ * - Date handling with modern Java time APIs
  * 
  * @author Music Library Development Team
- * @version 1.0
- * @since Java 7
+ * @version 2.0
+ * @since Java 17
  */
+@Service
+@Transactional
 public class AlbumService {
     
-    // Traditional Java logging - migration opportunity
-    private static final Logger LOGGER = Logger.getLogger(AlbumService.class.getName());
+    private static final Logger logger = LoggerFactory.getLogger(AlbumService.class);
     
-    // Manual DAO instantiation - migration opportunity to dependency injection
-    private final AlbumDAO albumDAO;
+    private final AlbumRepository albumRepository;
     
     /**
-     * Constructor with manual dependency injection.
-     * Traditional approach - migration opportunity to @Autowired constructor injection.
-     */
-    public AlbumService() {
-        this.albumDAO = new AlbumDAO();
-    }
-    
-    /**
-     * Constructor for testing with DAO injection.
-     * Allows for mock DAO injection during unit testing.
+     * Constructor with automatic dependency injection.
+     * Spring automatically injects the AlbumRepository dependency.
      * 
-     * @param albumDAO DAO instance to use
+     * @param albumRepository the album repository
      */
-    public AlbumService(AlbumDAO albumDAO) {
-        this.albumDAO = albumDAO;
+    @Autowired
+    public AlbumService(AlbumRepository albumRepository) {
+        this.albumRepository = albumRepository;
     }
     
     /**
@@ -81,7 +79,7 @@ public class AlbumService {
      * @throws RuntimeException if database operation fails
      */
     public Album createAlbum(Album album) {
-        LOGGER.info("Creating new album: " + (album != null ? album.getAlbumName() : "null"));
+        logger.info("Creating new album: " + (album != null ? album.getAlbumName() : "null"));
         
         try {
             // Business validation before persistence
@@ -90,24 +88,17 @@ public class AlbumService {
             // Apply business rules and defaults
             applyAlbumBusinessRules(album);
             
-            Album createdAlbum = albumDAO.create(album);
-            LOGGER.info("Successfully created album with ID: " + createdAlbum.getAlbumId());
+            Album createdAlbum = albumRepository.save(album);
+            logger.info("Successfully created album with ID: " + createdAlbum.getAlbumId());
             
             return createdAlbum;
             
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Database error creating album", e);
-            
-            // Provide business-friendly error messages
-            if (e.getMessage().contains("already exists")) {
-                throw new RuntimeException("Album '" + album.getAlbumName() + 
-                    "' already exists for this artist", e);
-            } else {
-                throw new RuntimeException("Failed to create album: " + e.getMessage(), e);
-            }
         } catch (IllegalArgumentException e) {
-            LOGGER.log(Level.WARNING, "Invalid album data: " + e.getMessage(), e);
+            logger.warn("Invalid album data: " + e.getMessage(), e);
             throw e;
+        } catch (Exception e) {
+            logger.error("Database error creating album", e);
+            throw new RuntimeException("Failed to create album: " + e.getMessage(), e);
         }
     }
     
@@ -125,17 +116,18 @@ public class AlbumService {
         }
         
         try {
-            Album album = albumDAO.findById(albumId);
-            if (album != null) {
-                LOGGER.fine("Retrieved album: " + album.getAlbumName());
+            Optional<Album> albumOptional = albumRepository.findById(albumId);
+            if (albumOptional.isPresent()) {
+                Album album = albumOptional.get();
+                logger.debug("Retrieved album: " + album.getAlbumName());
+                return album;
             } else {
-                LOGGER.fine("Album not found with ID: " + albumId);
+                logger.debug("Album not found with ID: " + albumId);
+                return null;
             }
             
-            return album;
-            
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Database error retrieving album ID: " + albumId, e);
+        } catch (Exception e) {
+            logger.error("Database error retrieving album ID: " + albumId, e);
             throw new RuntimeException("Failed to retrieve album: " + e.getMessage(), e);
         }
     }
@@ -152,16 +144,16 @@ public class AlbumService {
      * @throws RuntimeException if database operation fails
      */
     public List<Album> getAllAlbums() {
-        LOGGER.info("Retrieving all albums");
+        logger.info("Retrieving all albums");
         
         try {
-            List<Album> albums = albumDAO.findAll();
-            LOGGER.info("Retrieved " + albums.size() + " albums");
+            List<Album> albums = albumRepository.findAll();
+            logger.info("Retrieved " + albums.size() + " albums");
             
             return albums;
             
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Database error retrieving all albums", e);
+        } catch (Exception e) {
+            logger.error("Database error retrieving all albums", e);
             throw new RuntimeException("Failed to retrieve albums: " + e.getMessage(), e);
         }
     }
@@ -182,7 +174,7 @@ public class AlbumService {
      * @throws RuntimeException if database operation fails
      */
     public Album updateAlbum(Album album) {
-        LOGGER.info("Updating album: " + (album != null ? album.getAlbumName() : "null"));
+        logger.info("Updating album: " + (album != null ? album.getAlbumName() : "null"));
         
         try {
             // Business validation for updates
@@ -191,23 +183,17 @@ public class AlbumService {
             // Apply business rules
             applyAlbumBusinessRules(album);
             
-            Album updatedAlbum = albumDAO.update(album);
-            LOGGER.info("Successfully updated album with ID: " + updatedAlbum.getAlbumId());
+            Album updatedAlbum = albumRepository.save(album);
+            logger.info("Successfully updated album with ID: " + updatedAlbum.getAlbumId());
             
             return updatedAlbum;
             
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Database error updating album", e);
-            
-            // Provide business-friendly error messages
-            if (e.getMessage().contains("already exists")) {
-                throw new RuntimeException("Album name already exists for this artist", e);
-            } else {
-                throw new RuntimeException("Failed to update album: " + e.getMessage(), e);
-            }
         } catch (IllegalArgumentException e) {
-            LOGGER.log(Level.WARNING, "Invalid album update data: " + e.getMessage(), e);
+            logger.warn("Invalid album update data: " + e.getMessage(), e);
             throw e;
+        } catch (Exception e) {
+            logger.error("Database error updating album", e);
+            throw new RuntimeException("Failed to update album: " + e.getMessage(), e);
         }
     }
     
@@ -230,21 +216,21 @@ public class AlbumService {
             throw new IllegalArgumentException("Invalid album ID provided");
         }
         
-        LOGGER.info("Deleting album with ID: " + albumId);
+        logger.info("Deleting album with ID: " + albumId);
         
         try {
-            boolean deleted = albumDAO.delete(albumId);
-            
-            if (deleted) {
-                LOGGER.info("Successfully deleted album with ID: " + albumId);
+            boolean exists = albumRepository.existsById(albumId);
+            if (exists) {
+                albumRepository.deleteById(albumId);
+                logger.info("Successfully deleted album with ID: " + albumId);
+                return true;
             } else {
-                LOGGER.warning("Album not found for deletion with ID: " + albumId);
+                logger.warn("Album not found for deletion with ID: " + albumId);
+                return false;
             }
             
-            return deleted;
-            
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Database error deleting album ID: " + albumId, e);
+        } catch (Exception e) {
+            logger.error("Database error deleting album ID: " + albumId, e);
             throw new RuntimeException("Failed to delete album: " + e.getMessage(), e);
         }
     }
@@ -263,22 +249,22 @@ public class AlbumService {
      * @throws RuntimeException if database operation fails
      */
     public List<Album> searchAlbums(String query) {
-        LOGGER.info("Searching albums with query: " + query);
+        logger.info("Searching albums with query: " + query);
         
         // Handle empty queries without calling DAO
         if (query == null || query.trim().isEmpty()) {
-            LOGGER.info("Empty query provided, returning empty list");
+            logger.info("Empty query provided, returning empty list");
             return new ArrayList<Album>();
         }
         
         try {
-            List<Album> albums = albumDAO.search(query);
-            LOGGER.info("Search returned " + albums.size() + " albums");
+            List<Album> albums = albumRepository.searchByName(query);
+            logger.info("Search returned " + albums.size() + " albums");
             
             return albums;
             
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Database error searching albums", e);
+        } catch (Exception e) {
+            logger.error("Database error searching albums", e);
             throw new RuntimeException("Failed to search albums: " + e.getMessage(), e);
         }
     }
@@ -301,16 +287,16 @@ public class AlbumService {
             throw new IllegalArgumentException("Invalid artist ID provided");
         }
         
-        LOGGER.fine("Retrieving albums for artist ID: " + artistId);
+        logger.debug("Retrieving albums for artist ID: " + artistId);
         
         try {
-            List<Album> albums = albumDAO.findByArtist(artistId);
-            LOGGER.fine("Retrieved " + albums.size() + " albums for artist ID: " + artistId);
+            List<Album> albums = albumRepository.findByArtistArtistId(artistId);
+            logger.debug("Retrieved " + albums.size() + " albums for artist ID: " + artistId);
             
             return albums;
             
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Database error retrieving albums by artist ID", e);
+        } catch (Exception e) {
+            logger.error("Database error retrieving albums by artist ID", e);
             throw new RuntimeException("Failed to retrieve albums by artist ID: " + e.getMessage(), e);
         }
     }
@@ -333,16 +319,16 @@ public class AlbumService {
             throw new IllegalArgumentException("Invalid artist name provided");
         }
         
-        LOGGER.fine("Retrieving albums for artist name: " + artistName);
+        logger.debug("Retrieving albums for artist name: " + artistName);
         
         try {
-            List<Album> albums = albumDAO.findByArtist(artistName.trim());
-            LOGGER.fine("Retrieved " + albums.size() + " albums for artist: " + artistName);
+            List<Album> albums = albumRepository.findByArtistArtistNameIgnoreCase(artistName.trim());
+            logger.debug("Retrieved " + albums.size() + " albums for artist: " + artistName);
             
             return albums;
             
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Database error retrieving albums by artist", e);
+        } catch (Exception e) {
+            logger.error("Database error retrieving albums by artist", e);
             throw new RuntimeException("Failed to retrieve albums by artist: " + e.getMessage(), e);
         }
     }
@@ -370,16 +356,18 @@ public class AlbumService {
         }
         
         int offset = page * size;
-        LOGGER.fine("Retrieving albums with pagination: page=" + page + ", size=" + size);
+        logger.debug("Retrieving albums with pagination: page=" + page + ", size=" + size);
         
         try {
-            List<Album> albums = albumDAO.findWithPagination(offset, size);
-            LOGGER.fine("Retrieved " + albums.size() + " albums for page " + page);
+            Pageable pageable = PageRequest.of(page, size);
+            Page<Album> albumsPage = albumRepository.findAll(pageable);
+            List<Album> albums = albumsPage.getContent();
+            logger.debug("Retrieved " + albums.size() + " albums for page " + page);
             
             return albums;
             
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Database error retrieving paginated albums", e);
+        } catch (Exception e) {
+            logger.error("Database error retrieving paginated albums", e);
             throw new RuntimeException("Failed to retrieve albums: " + e.getMessage(), e);
         }
     }
@@ -392,13 +380,13 @@ public class AlbumService {
      */
     public long getTotalAlbumCount() {
         try {
-            long count = albumDAO.count();
-            LOGGER.fine("Total album count: " + count);
+            long count = albumRepository.count();
+            logger.debug("Total album count: " + count);
             
             return count;
             
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Database error getting album count", e);
+        } catch (Exception e) {
+            logger.error("Database error getting album count", e);
             throw new RuntimeException("Failed to get album count: " + e.getMessage(), e);
         }
     }
@@ -419,13 +407,13 @@ public class AlbumService {
         }
         
         try {
-            boolean exists = albumDAO.exists(albumId);
-            LOGGER.fine("Album existence check for ID " + albumId + ": " + exists);
+            boolean exists = albumRepository.existsById(albumId);
+            logger.debug("Album existence check for ID " + albumId + ": " + exists);
             
             return exists;
             
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Database error checking album existence", e);
+        } catch (Exception e) {
+            logger.error("Database error checking album existence", e);
             throw new RuntimeException("Failed to check album existence: " + e.getMessage(), e);
         }
     }
@@ -451,7 +439,12 @@ public class AlbumService {
             throw new IllegalArgumentException("Album name is required");
         }
         
-        if (album.getArtistId() == null || album.getArtistId().longValue() <= 0) {
+        if (album.getArtist() == null) {
+            throw new IllegalArgumentException("Artist is required");
+        }
+        
+        // Validate artist ID if artist is provided
+        if (album.getArtist().getArtistId() == null || album.getArtist().getArtistId() <= 0) {
             throw new IllegalArgumentException("Valid Artist ID is required");
         }
         
@@ -462,14 +455,13 @@ public class AlbumService {
         
         // Validate release date if provided
         if (album.getReleaseDate() != null) {
-            Date now = new Date();
-            if (album.getReleaseDate().after(now)) {
+            LocalDate now = LocalDate.now();
+            if (album.getReleaseDate().isAfter(now)) {
                 throw new IllegalArgumentException("Release date cannot be in the future");
             }
             
             // Business rule: Release date should not be too far in the past
-            @SuppressWarnings("deprecation")
-            int releaseYear = album.getReleaseDate().getYear() + 1900;
+            int releaseYear = album.getReleaseDate().getYear();
             if (releaseYear < 1900) {
                 throw new IllegalArgumentException("Release date cannot be before 1900");
             }
@@ -576,16 +568,16 @@ public class AlbumService {
             throw new IllegalArgumentException("Invalid genre name provided");
         }
         
-        LOGGER.fine("Retrieving albums for genre: " + genre);
+        logger.debug("Retrieving albums for genre: " + genre);
         
         try {
-            List<Album> albums = albumDAO.findByGenre(genre.trim());
-            LOGGER.fine("Retrieved " + albums.size() + " albums for genre: " + genre);
+            List<Album> albums = albumRepository.findByGenreIgnoreCase(genre.trim());
+            logger.debug("Retrieved " + albums.size() + " albums for genre: " + genre);
             
             return albums;
             
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Database error retrieving albums by genre", e);
+        } catch (Exception e) {
+            logger.error("Database error retrieving albums by genre", e);
             throw new RuntimeException("Failed to retrieve albums by genre: " + e.getMessage(), e);
         }
     }
@@ -609,17 +601,17 @@ public class AlbumService {
             throw new IllegalArgumentException("Invalid release year: " + year);
         }
         
-        LOGGER.fine("Retrieving albums for year: " + year);
+        logger.debug("Retrieving albums for year: " + year);
         
         
         try {
-            List<Album> albums = albumDAO.findByYear(year);
-            LOGGER.fine("Retrieved " + albums.size() + " albums for year: " + year);
+            List<Album> albums = albumRepository.findByReleaseYear(year);
+            logger.debug("Retrieved " + albums.size() + " albums for year: " + year);
             
             return albums;
             
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Database error retrieving albums by year", e);
+        } catch (Exception e) {
+            logger.error("Database error retrieving albums by year", e);
             throw new RuntimeException("Failed to retrieve albums by year: " + e.getMessage(), e);
         }
     }

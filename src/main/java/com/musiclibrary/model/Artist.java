@@ -1,12 +1,15 @@
 package com.musiclibrary.model;
 
-import java.util.Date;
+import java.time.LocalDateTime;
+import jakarta.persistence.*;
+import jakarta.validation.constraints.*;
+import java.util.List;
 
 /**
- * Artist Model Class
+ * Artist JPA Entity
  * 
- * Represents a music artist entity in the music library system.
- * This class follows traditional Java 7 JavaBean patterns for enterprise compatibility.
+ * Represents a music artist entity in the music library system using JPA for persistence.
+ * Migrated from traditional JDBC to Spring Data JPA with proper entity annotations.
  * 
  * Business Logic:
  * - Artist represents individual musicians or bands in the music catalog
@@ -15,41 +18,74 @@ import java.util.Date;
  * - Formation year enables chronological organization and historical context
  * - Website links provide external resource integration
  * 
- * Migration Opportunities:
- * - Manual getter/setter -> Lombok annotations
- * - Date type -> LocalDateTime (Java 8+)
- * - Manual validation -> Bean Validation (@NotNull, @Size, etc.)
- * - Traditional constructors -> Builder pattern
- * - Manual JSON handling -> Jackson annotations
- * - Basic String fields -> Optional wrapper for nullable fields
+ * JPA Features:
+ * - Entity mapping with @Entity and @Table annotations
+ * - Primary key generation with @GeneratedValue
+ * - One-to-many relationships with @OneToMany
+ * - Bean validation with @NotNull, @Size
+ * - Audit fields with @CreationTimestamp and @UpdateTimestamp
+ * - Unique constraint on artist name for data integrity
  * 
  * @author Music Library Development Team
- * @version 1.0
- * @since Java 7
+ * @version 2.0 - Migrated to JPA
+ * @since Java 17
  */
+@Entity
+@Table(name = "artists", uniqueConstraints = {
+    @UniqueConstraint(columnNames = "artist_name")
+})
 public class Artist {
     
-    // Primary key using traditional Long wrapper
+    // Primary key with JPA auto-generation
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "artist_id")
     private Long artistId;
     
-    // Core artist information
+    // Core artist information with JPA validation
+    @NotNull(message = "Artist name is required")
+    @Size(min = 1, max = 255, message = "Artist name must be between 1 and 255 characters")
+    @Column(name = "artist_name", nullable = false, unique = true)
     private String artistName;    // Required - unique artist identifier
+    
+    @Column(name = "biography", columnDefinition = "TEXT")
     private String biography;     // Optional - artist background information
+    
+    @Size(max = 100, message = "Country must not exceed 100 characters")
+    @Column(name = "country")
     private String country;       // Optional - artist origin country
+    
+    @Min(value = 1800, message = "Formation year must be after 1800")
+    @Max(value = 2100, message = "Formation year must be before 2100")
+    @Column(name = "formed_year")
     private Integer formedYear;   // Optional - when artist/band was formed
+    
+    @Size(max = 500, message = "Website URL must not exceed 500 characters")
+    @Column(name = "website")
     private String website;       // Optional - official artist website
     
-    // Audit trail fields - standard enterprise pattern
-    private Date createdDate;
-    private Date lastModified;
+    @OneToMany(mappedBy = "artist", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<Album> albums;   // One artist has many albums
+    
+    @OneToMany(mappedBy = "artist", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<Song> songs;     // One artist has many songs
+    
+    // Audit fields with JPA automatic timestamping
+    @Column(name = "created_date", nullable = false, updatable = false)
+    @org.hibernate.annotations.CreationTimestamp
+    private LocalDateTime createdDate;
+    
+    @Column(name = "last_modified", nullable = false)
+    @org.hibernate.annotations.UpdateTimestamp
+    private LocalDateTime lastModified;
     
     /**
      * Default no-argument constructor required for JavaBean specification.
      * Initializes audit fields with current timestamp.
      */
     public Artist() {
-        this.createdDate = new Date();
-        this.lastModified = new Date();
+        this.createdDate = LocalDateTime.now();
+        this.lastModified = LocalDateTime.now();
     }
     
     /**
@@ -92,7 +128,7 @@ public class Artist {
     
     public void setArtistName(String artistName) {
         this.artistName = artistName;
-        this.lastModified = new Date(); // Update modification timestamp
+        this.lastModified = LocalDateTime.now(); // Update modification timestamp
     }
     
     public String getBiography() {
@@ -101,7 +137,7 @@ public class Artist {
     
     public void setBiography(String biography) {
         this.biography = biography;
-        this.lastModified = new Date();
+        this.lastModified = LocalDateTime.now();
     }
     
     public String getCountry() {
@@ -110,7 +146,7 @@ public class Artist {
     
     public void setCountry(String country) {
         this.country = country;
-        this.lastModified = new Date();
+        this.lastModified = LocalDateTime.now();
     }
     
     public Integer getFormedYear() {
@@ -119,7 +155,7 @@ public class Artist {
     
     public void setFormedYear(Integer formedYear) {
         this.formedYear = formedYear;
-        this.lastModified = new Date();
+        this.lastModified = LocalDateTime.now();
     }
     
     public String getWebsite() {
@@ -128,22 +164,40 @@ public class Artist {
     
     public void setWebsite(String website) {
         this.website = website;
-        this.lastModified = new Date();
+        this.lastModified = LocalDateTime.now();
     }
     
-    public Date getCreatedDate() {
+    public List<Album> getAlbums() {
+        return albums;
+    }
+    
+    public void setAlbums(List<Album> albums) {
+        this.albums = albums;
+        this.lastModified = LocalDateTime.now();
+    }
+    
+    public List<Song> getSongs() {
+        return songs;
+    }
+    
+    public void setSongs(List<Song> songs) {
+        this.songs = songs;
+        this.lastModified = LocalDateTime.now();
+    }
+    
+    public LocalDateTime getCreatedDate() {
         return createdDate;
     }
     
-    public void setCreatedDate(Date createdDate) {
+    public void setCreatedDate(LocalDateTime createdDate) {
         this.createdDate = createdDate;
     }
     
-    public Date getLastModified() {
+    public LocalDateTime getLastModified() {
         return lastModified;
     }
     
-    public void setLastModified(Date lastModified) {
+    public void setLastModified(LocalDateTime lastModified) {
         this.lastModified = lastModified;
     }
     
