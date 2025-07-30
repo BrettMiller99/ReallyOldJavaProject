@@ -56,7 +56,9 @@ public class SongDAO implements BaseDAO<Song, Long> {
         "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
     
     private static final String SELECT_BY_ID = 
-        "SELECT * FROM songs WHERE song_id = ?";
+        "SELECT s.*, a.artist_name as artist_name_lookup " +
+        "FROM songs s LEFT JOIN artists a ON s.artist_id = a.artist_id " +
+        "WHERE s.song_id = ?";
     
     private static final String SELECT_ALL = 
         "SELECT s.*, a.artist_name as artist_name_lookup " +
