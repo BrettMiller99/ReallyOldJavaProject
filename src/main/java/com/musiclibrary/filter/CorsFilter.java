@@ -46,7 +46,7 @@ public class CorsFilter implements Filter {
     private static final Logger LOGGER = Logger.getLogger(CorsFilter.class.getName());
     
     // CORS configuration parameters from web.xml
-    private String allowedOrigins = "*";
+    private String allowedOrigins = "https://localhost:3000,https://localhost:8080,http://localhost:3000,http://localhost:8080";
     private String allowedMethods = "GET,POST,PUT,DELETE,OPTIONS";
     private String allowedHeaders = "Content-Type,Authorization,X-Requested-With";
     private String maxAge = "3600";

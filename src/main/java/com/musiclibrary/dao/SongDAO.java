@@ -50,10 +50,10 @@ public class SongDAO implements BaseDAO<Song, Long> {
     
     // SQL queries using traditional string constants - migration opportunity
     private static final String INSERT_SONG = 
-        "INSERT INTO songs (song_name, album_id, artist_id, artist_name, track_number, " +
+        "INSERT INTO songs (song_name, album_id, artist_id, track_number, " +
         "track_length, date_released, genre, file_path, file_size, bitrate, rating, " +
         "play_count, last_played, lyrics, created_date, last_modified) " +
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
     
     private static final String SELECT_BY_ID = 
         "SELECT * FROM songs WHERE song_id = ?";
@@ -64,7 +64,7 @@ public class SongDAO implements BaseDAO<Song, Long> {
         "ORDER BY s.song_name";
     
     private static final String UPDATE_SONG = 
-        "UPDATE songs SET song_name = ?, album_id = ?, artist_id = ?, artist_name = ?, " +
+        "UPDATE songs SET song_name = ?, album_id = ?, artist_id = ?, " +
         "track_number = ?, track_length = ?, date_released = ?, genre = ?, file_path = ?, " +
         "file_size = ?, bitrate = ?, rating = ?, play_count = ?, last_played = ?, " +
         "lyrics = ?, last_modified = ? WHERE song_id = ?";
@@ -82,7 +82,7 @@ public class SongDAO implements BaseDAO<Song, Long> {
         "SELECT s.*, a.artist_name as artist_name_lookup " +
         "FROM songs s LEFT JOIN artists a ON s.artist_id = a.artist_id " +
         "WHERE LOWER(s.song_name) LIKE LOWER(?) " +
-        "OR LOWER(s.artist_name) LIKE LOWER(?) " +
+        "OR LOWER(a.artist_name) LIKE LOWER(?) " +
         "OR LOWER(s.genre) LIKE LOWER(?) " +
         "ORDER BY s.song_name";
     
@@ -134,7 +134,6 @@ public class SongDAO implements BaseDAO<Song, Long> {
             statement.setString(paramIndex++, song.getSongName());
             statement.setObject(paramIndex++, song.getAlbumId()); // Handle null values
             statement.setLong(paramIndex++, song.getArtistId());
-            statement.setString(paramIndex++, song.getArtistName());
             statement.setObject(paramIndex++, song.getTrackNumber());
             statement.setInt(paramIndex++, song.getTrackLength());
             statement.setDate(paramIndex++, song.getDateReleased() != null ? 
@@ -295,13 +294,11 @@ public class SongDAO implements BaseDAO<Song, Long> {
             }
             
             statement = connection.prepareStatement(UPDATE_SONG);
-            
             // Set parameters - traditional JDBC approach
             int paramIndex = 1;
             statement.setString(paramIndex++, song.getSongName());
             statement.setObject(paramIndex++, song.getAlbumId());
             statement.setLong(paramIndex++, song.getArtistId());
-            statement.setString(paramIndex++, song.getArtistName());
             statement.setObject(paramIndex++, song.getTrackNumber());
             statement.setInt(paramIndex++, song.getTrackLength());
             statement.setDate(paramIndex++, song.getDateReleased() != null ? 

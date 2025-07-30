@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Music Library API Test</title>
+    <title>Music Library API Test - Admin Only</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -73,7 +73,26 @@
 </head>
 <body>
     <div class="container">
-        <h1>🎵 Music Library API Test Interface</h1>
+        <h1>🎵 Music Library API Test Interface - Admin Access Required</h1>
+        
+        <!-- Authentication Section -->
+        <div class="test-section">
+            <h2>🔐 Authentication</h2>
+            <div style="margin: 10px 0;">
+                <label>Username:</label>
+                <input type="text" id="username" value="admin" placeholder="Enter username" style="width: 200px;">
+            </div>
+            <div style="margin: 10px 0;">
+                <label>Password:</label>
+                <input type="password" id="password" value="password123" placeholder="Enter password" style="width: 200px;">
+            </div>
+            <button onclick="authenticate()">Login & Get Token</button>
+            <div id="authResult" class="response"></div>
+            <div style="margin: 10px 0;">
+                <label>JWT Token:</label>
+                <input type="text" id="jwtToken" placeholder="JWT token will appear here after login" style="width: 100%;">
+            </div>
+        </div>
         
         <!-- Health Check Section -->
         <div class="test-section">
@@ -132,15 +151,54 @@
     </div>
 
     <script>
+        // Authentication function
+        async function authenticate() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            if (!username || !password) {
+                document.getElementById('authResult').innerHTML = 
+                    '<div class="error">❌ Please enter both username and password</div>';
+                return;
+            }
+            
+            const result = await apiCall('POST', '/auth/login', { username, password });
+            if (result.body) {
+                try {
+                    const data = JSON.parse(result.body);
+                    if (data.success) {
+                        document.getElementById('jwtToken').value = data.token;
+                        document.getElementById('authResult').innerHTML = 
+                            `<div class="success">✅ Authentication Successful</div>
+                             <pre>Welcome, ${data.username}!</pre>`;
+                    } else {
+                        document.getElementById('authResult').innerHTML = 
+                            `<div class="error">❌ Authentication Failed: ${data.error}</div>`;
+                    }
+                } catch (e) {
+                    document.getElementById('authResult').innerHTML = 
+                        `<div class="error">❌ Authentication Error: ${e.message}</div>`;
+                }
+            } else {
+                document.getElementById('authResult').innerHTML = 
+                    `<div class="error">❌ Authentication Error: ${result.error || 'Unknown error'}</div>`;
+            }
+        }
+
         // Utility function to make API calls
         async function apiCall(method, url, body = null) {
             try {
+                const token = document.getElementById('jwtToken').value;
                 const options = {
                     method: method,
                     headers: {
                         'Content-Type': 'application/json',
                     }
                 };
+                
+                if (token && !url.includes('/auth/')) {
+                    options.headers['Authorization'] = 'Bearer ' + token;
+                }
                 
                 if (body) {
                     options.body = JSON.stringify(body);

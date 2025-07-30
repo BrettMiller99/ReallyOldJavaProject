@@ -179,6 +179,16 @@
         <servlet-name>HealthCheckServlet</servlet-name>
         <url-pattern>/api/status</url-pattern>
     </servlet-mapping>
+    
+    <!-- Authentication Servlet -->
+    <servlet>
+        <servlet-name>AuthServlet</servlet-name>
+        <servlet-class>com.musiclibrary.servlet.AuthServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>AuthServlet</servlet-name>
+        <url-pattern>/auth/login</url-pattern>
+    </servlet-mapping>
 
     <!-- CORS Filter Configuration -->
     <filter>
@@ -188,7 +198,7 @@
         
         <init-param>
             <param-name>cors.allowed.origins</param-name>
-            <param-value>*</param-value>
+            <param-value>https://localhost:3000,https://localhost:8080,http://localhost:3000,http://localhost:8080</param-value>
         </init-param>
         <init-param>
             <param-name>cors.allowed.methods</param-name>
@@ -223,6 +233,16 @@
 
     <filter-mapping>
         <filter-name>RequestLoggingFilter</filter-name>
+        <url-pattern>/api/*</url-pattern>
+    </filter-mapping>
+    
+    <!-- Authentication Filter for API endpoints -->
+    <filter>
+        <filter-name>AuthenticationFilter</filter-name>
+        <filter-class>com.musiclibrary.filter.AuthenticationFilter</filter-class>
+    </filter>
+    <filter-mapping>
+        <filter-name>AuthenticationFilter</filter-name>
         <url-pattern>/api/*</url-pattern>
     </filter-mapping>
 
@@ -270,6 +290,8 @@
         </web-resource-collection>
         <!-- No auth-constraint means all users can access -->
     </security-constraint>
+    
+    <!-- Note: test.html is secured through application-level authentication via JWT tokens -->
 
     <!-- MIME Type Mappings -->
     <mime-mapping>
