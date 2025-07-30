@@ -98,6 +98,7 @@ CREATE TABLE IF NOT EXISTS playlist_songs (
 );
 
 -- Create traditional indexes for performance - manual approach typical of Java 7 era
+-- These indexes are created after all tables to ensure proper execution order
 CREATE INDEX IF NOT EXISTS idx_songs_artist ON songs(artist_id);
 CREATE INDEX IF NOT EXISTS idx_songs_album ON songs(album_id);
 CREATE INDEX IF NOT EXISTS idx_songs_genre ON songs(genre);

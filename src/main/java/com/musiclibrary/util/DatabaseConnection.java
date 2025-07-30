@@ -8,6 +8,8 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -267,15 +269,33 @@ public class DatabaseConnection {
                 sqlContent.append(new String(buffer, 0, bytesRead));
             }
             
-            // Execute schema SQL - basic approach without script parsing
+            // Execute schema SQL with improved parsing for multi-line statements
             statement = connection.createStatement();
-            String[] sqlStatements = sqlContent.toString().split(";");
             
-            for (String sql : sqlStatements) {
-                sql = sql.trim();
-                if (!sql.isEmpty() && !sql.startsWith("--")) {
+            // Split SQL content by semicolons and clean up each statement
+            String[] rawStatements = sqlContent.toString().split(";");
+            List<String> cleanStatements = new ArrayList<>();
+            
+            for (String rawStmt : rawStatements) {
+                String cleanStmt = cleanStatement(rawStmt);
+                if (!cleanStmt.isEmpty()) {
+                    cleanStatements.add(cleanStmt);
+                }
+            }
+            
+            LOGGER.info("Executing " + cleanStatements.size() + " SQL statements...");
+            
+            for (int i = 0; i < cleanStatements.size(); i++) {
+                String sql = cleanStatements.get(i);
+                try {
+                    LOGGER.info("Executing SQL [" + (i+1) + "]: " + getStatementSummary(sql));
                     statement.execute(sql);
-                    LOGGER.fine("Executed SQL: " + sql.substring(0, Math.min(50, sql.length())) + "...");
+                    LOGGER.info("Successfully executed statement [" + (i+1) + "]");
+                } catch (SQLException sqlEx) {
+                    LOGGER.severe("Failed to execute SQL statement [" + (i+1) + "]: " + sql);
+                    LOGGER.severe("SQL Error: " + sqlEx.getMessage());
+                    LOGGER.severe("Error Code: " + sqlEx.getErrorCode());
+                    throw new SQLException("Error executing statement " + (i+1) + ": " + sqlEx.getMessage(), sqlEx);
                 }
             }
             
@@ -355,5 +375,62 @@ public class DatabaseConnection {
      */
     public static int getMaxPoolSize() {
         return poolSize;
+    }
+    
+    /**
+     * Cleans a SQL statement by removing comments and extra whitespace.
+     * Helper method for improved SQL parsing.
+     * 
+     * @param rawStatement Raw SQL statement
+     * @return Cleaned SQL statement
+     */
+    private static String cleanStatement(String rawStatement) {
+        if (rawStatement == null) {
+            return "";
+        }
+        
+        // Remove line comments (--)
+        String[] lines = rawStatement.split("\n");
+        StringBuilder cleaned = new StringBuilder();
+        
+        for (String line : lines) {
+            // Remove comments and trim
+            int commentIndex = line.indexOf("--");
+            if (commentIndex >= 0) {
+                line = line.substring(0, commentIndex);
+            }
+            line = line.trim();
+            
+            if (!line.isEmpty()) {
+                if (cleaned.length() > 0) {
+                    cleaned.append(" ");
+                }
+                cleaned.append(line);
+            }
+        }
+        
+        return cleaned.toString().trim();
+    }
+    
+    /**
+     * Gets a summary of an SQL statement for logging.
+     * Helper method to provide readable logging output.
+     * 
+     * @param statement SQL statement
+     * @return Statement summary
+     */
+    private static String getStatementSummary(String statement) {
+        if (statement == null || statement.isEmpty()) {
+            return "[EMPTY]";
+        }
+        
+        String trimmed = statement.trim();
+        String firstLine = trimmed.split("\n")[0].trim();
+        
+        if (firstLine.length() > 80) {
+            return firstLine.substring(0, 77) + "...";
+        }
+        
+        return firstLine;
     }
 }
