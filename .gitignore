@@ -200,3 +200,4 @@ build/
 deploy/
 *.properties.local
 config.local.*
+maven-status/*
