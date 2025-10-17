@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Music Library API Test - Admin Only</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            border-bottom: 3px solid #007acc;
+            padding-bottom: 10px;
+        }
+        .test-section {
+            margin: 30px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        .test-section h2 {
+            color: #007acc;
+            margin-top: 0;
+        }
+        button {
+            background: #007acc;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #005a99;
+        }
+        textarea, input {
+            width: 100%;
+            padding: 10px;
+            margin: 5px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        textarea {
+            height: 200px;
+            font-family: monospace;
+        }
+        .response {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
+        .success { border-left: 4px solid #28a745; }
+        .error { border-left: 4px solid #dc3545; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎵 Music Library API Test Interface - Admin Access Required</h1>
+        
+        <!-- Authentication Section -->
+        <div class="test-section">
+            <h2>🔐 Authentication</h2>
+            <div style="margin: 10px 0;">
+                <label>Username:</label>
+                <input type="text" id="username" value="admin" placeholder="Enter username" style="width: 200px;">
+            </div>
+            <div style="margin: 10px 0;">
+                <label>Password:</label>
+                <input type="password" id="password" value="password123" placeholder="Enter password" style="width: 200px;">
+            </div>
+            <button onclick="authenticate()">Login & Get Token</button>
+            <div id="authResult" class="response"></div>
+            <div style="margin: 10px 0;">
+                <label>JWT Token:</label>
+                <input type="text" id="jwtToken" placeholder="JWT token will appear here after login" style="width: 100%;">
+            </div>
+        </div>
+        
+        <!-- Health Check Section -->
+        <div class="test-section">
+            <h2>1. Health Check</h2>
+            <p>Test the API health and status endpoints:</p>
+            <button onclick="testHealth()">Test /api/health</button>
+            <button onclick="testStatus()">Test /api/status</button>
+            <div id="healthResult" class="response"></div>
+        </div>
+
+        <!-- Artists Section -->
+        <div class="test-section">
+            <h2>2. Artists Management</h2>
+            <p>Test artist CRUD operations:</p>
+            <button onclick="getAllArtists()">Get All Artists</button>
+            <button onclick="createTestArtist()">Create Test Artist</button>
+            <div id="artistResult" class="response"></div>
+        </div>
+
+        <!-- Songs Section -->
+        <div class="test-section">
+            <h2>3. Songs Management</h2>
+            <p>Test song CRUD operations:</p>
+            <button onclick="getAllSongs()">Get All Songs</button>
+            <button onclick="createTestSong()">Create Test Song</button>
+            <div id="songResult" class="response"></div>
+        </div>
+
+        <!-- Albums Section -->
+        <div class="test-section">
+            <h2>4. Albums Management</h2>
+            <p>Test album CRUD operations:</p>
+            <button onclick="getAllAlbums()">Get All Albums</button>
+            <button onclick="createTestAlbum()">Create Test Album</button>
+            <div id="albumResult" class="response"></div>
+        </div>
+
+        <!-- Custom Request Section -->
+        <div class="test-section">
+            <h2>5. Custom API Test</h2>
+            <p>Test custom requests:</p>
+            <label>Method:</label>
+            <select id="method">
+                <option>GET</option>
+                <option>POST</option>
+                <option>PUT</option>
+                <option>DELETE</option>
+            </select>
+            <label>URL:</label>
+            <input type="text" id="url" placeholder="/api/songs" value="/api/songs">
+            <label>Request Body (JSON):</label>
+            <textarea id="requestBody" placeholder='{"key": "value"}'></textarea>
+            <button onclick="customRequest()">Send Request</button>
+            <div id="customResult" class="response"></div>
+        </div>
+    </div>
+
+    <script>
+        // Authentication function
+        async function authenticate() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            if (!username || !password) {
+                document.getElementById('authResult').innerHTML = 
+                    '<div class="error">❌ Please enter both username and password</div>';
+                return;
+            }
+            
+            const result = await apiCall('POST', '/auth/login', { username, password });
+            if (result.body) {
+                try {
+                    const data = JSON.parse(result.body);
+                    if (data.success) {
+                        document.getElementById('jwtToken').value = data.token;
+                        document.getElementById('authResult').innerHTML = 
+                            `<div class="success">✅ Authentication Successful</div>
+                             <pre>Welcome, ${data.username}!</pre>`;
+                    } else {
+                        document.getElementById('authResult').innerHTML = 
+                            `<div class="error">❌ Authentication Failed: ${data.error}</div>`;
+                    }
+                } catch (e) {
+                    document.getElementById('authResult').innerHTML = 
+                        `<div class="error">❌ Authentication Error: ${e.message}</div>`;
+                }
+            } else {
+                document.getElementById('authResult').innerHTML = 
+                    `<div class="error">❌ Authentication Error: ${result.error || 'Unknown error'}</div>`;
+            }
+        }
+
+        // Utility function to make API calls
+        async function apiCall(method, url, body = null) {
+            try {
+                const token = document.getElementById('jwtToken').value;
+                const options = {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                };
+                
+                if (token && !url.includes('/auth/')) {
+                    options.headers['Authorization'] = 'Bearer ' + token;
+                }
+                
+                if (body) {
+                    options.body = JSON.stringify(body);
+                }
+                
+                const response = await fetch(url, options);
+                const text = await response.text();
+                
+                return {
+                    status: response.status,
+                    statusText: response.statusText,
+                    headers: Object.fromEntries(response.headers.entries()),
+                    body: text
+                };
+            } catch (error) {
+                return {
+                    error: error.message
+                };
+            }
+        }
+
+        // Display results in the UI
+        function displayResult(elementId, result) {
+            const element = document.getElementById(elementId);
+            element.className = 'response ' + (result.error || result.status >= 400 ? 'error' : 'success');
+            element.textContent = JSON.stringify(result, null, 2);
+        }
+
+        // Health check tests
+        async function testHealth() {
+            const result = await apiCall('GET', '/api/health');
+            displayResult('healthResult', result);
+        }
+
+        async function testStatus() {
+            const result = await apiCall('GET', '/api/status');
+            displayResult('healthResult', result);
+        }
+
+        // Artist tests
+        async function getAllArtists() {
+            const result = await apiCall('GET', '/api/artists');
+            displayResult('artistResult', result);
+        }
+
+        async function createTestArtist() {
+            const artist = {
+                artistName: 'Queen',
+                country: 'United Kingdom',
+                formedYear: 1970,
+                biography: 'Legendary British rock band formed in London in 1970.'
+            };
+            const result = await apiCall('POST', '/api/artists', artist);
+            displayResult('artistResult', result);
+        }
+
+        // Song tests
+        async function getAllSongs() {
+            const result = await apiCall('GET', '/api/songs');
+            displayResult('songResult', result);
+        }
+
+        async function createTestSong() {
+            const song = {
+                songName: 'Bohemian Rhapsody',
+                artistId: 1,
+                albumName: 'A Night at the Opera',
+                trackLength: 355,
+                dateReleased: '1975-10-31',
+                genre: 'Rock'
+            };
+            const result = await apiCall('POST', '/api/songs', song);
+            displayResult('songResult', result);
+        }
+
+        // Album tests
+        async function getAllAlbums() {
+            const result = await apiCall('GET', '/api/albums');
+            displayResult('albumResult', result);
+        }
+
+        async function createTestAlbum() {
+            const album = {
+                albumName: 'A Night at the Opera',
+                artistId: 1,
+                releaseDate: '1975-11-21',
+                genre: 'Rock',
+                recordLabel: 'EMI',
+                totalTracks: 12
+            };
+            const result = await apiCall('POST', '/api/albums', album);
+            displayResult('albumResult', result);
+        }
+
+        // Custom request
+        async function customRequest() {
+            const method = document.getElementById('method').value;
+            const url = document.getElementById('url').value;
+            const bodyText = document.getElementById('requestBody').value;
+            
+            let body = null;
+            if (bodyText.trim()) {
+                try {
+                    body = JSON.parse(bodyText);
+                } catch (e) {
+                    displayResult('customResult', { error: 'Invalid JSON in request body: ' + e.message });
+                    return;
+                }
+            }
+            
+            const result = await apiCall(method, url, body);
+            displayResult('customResult', result);
+        }
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Music Library API Test Interface loaded');
+            testHealth(); // Auto-run health check on load
+        });
+    </script>
+</body>
+</html>

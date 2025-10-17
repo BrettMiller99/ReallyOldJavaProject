@@ -1,13 +1,13 @@
 package com.musiclibrary.filter;
 
-import javax.servlet.Filter;
-import javax.servlet.FilterChain;
-import javax.servlet.FilterConfig;
-import javax.servlet.ServletException;
-import javax.servlet.ServletRequest;
-import javax.servlet.ServletResponse;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.Filter;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.FilterConfig;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletResponse;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.logging.Logger;
 
@@ -46,7 +46,7 @@ public class CorsFilter implements Filter {
     private static final Logger LOGGER = Logger.getLogger(CorsFilter.class.getName());
     
     // CORS configuration parameters from web.xml
-    private String allowedOrigins = "*";
+    private String allowedOrigins = "https://localhost:3000,https://localhost:8080,http://localhost:3000,http://localhost:8080";
     private String allowedMethods = "GET,POST,PUT,DELETE,OPTIONS";
     private String allowedHeaders = "Content-Type,Authorization,X-Requested-With";
     private String maxAge = "3600";

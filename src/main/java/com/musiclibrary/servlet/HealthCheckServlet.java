@@ -4,10 +4,10 @@ import com.musiclibrary.util.DatabaseConnection;
 import com.musiclibrary.util.JsonUtil;
 import org.json.JSONObject;
 
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServlet;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.sql.Connection;
@@ -98,7 +98,6 @@ public class HealthCheckServlet extends HttpServlet {
         
         try {
             // Parse URL path to determine operation - manual routing
-            String pathInfo = request.getPathInfo();
             String requestURI = request.getRequestURI();
             
             if (requestURI.endsWith("/health")) {
@@ -293,7 +292,6 @@ public class HealthCheckServlet extends HttpServlet {
      */
     private boolean checkMemoryHealth() {
         try {
-            Runtime runtime = Runtime.getRuntime();
             double memoryUsagePercent = calculateMemoryUsagePercent();
             
             // Consider unhealthy if memory usage is above 90%
